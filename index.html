@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input,selec
 
 <main id="appSettingsView" class="hidden">
   <div class="card"><div class="section-title">התראות</div><div id="notificationStatus" class="summary"></div><div class="actions"><button class="btn secondary" id="permissionBtn">אפשר התראות</button><button class="btn ghost" id="testNotifyBtn">שלח התראת בדיקה</button></div><div class="small" style="margin-top:10px">השעות והאם לשלוח התראה מוגדרים בכל פעולה. בגרסה החינמית הזו ההתראות המתוזמנות אינן מובטחות כשהאפליקציה סגורה; האפליקציה יכולה להזכיר בזמן שהיא פתוחה/פעילה. נוכל לחבר בהמשך פתרון אמין יותר בלי לשנות את המעקבים.</div></div>
-  <div class="card"><div class="section-title">נתונים</div><div class="small">כל הנתונים נשמרים מקומית במכשיר הזה בלבד.</div></div>
+  <div class="card"><div class="section-title">נתונים וגיבוי</div><div class="small">כל הנתונים נשמרים מקומית במכשיר הזה בלבד. מומלץ לייצא גיבוי מדי פעם, במיוחד לפני החלפת מכשיר או מעבר לכתובת חדשה.</div><div class="actions"><button class="btn secondary" id="exportDataBtn">ייצוא גיבוי</button><button class="btn ghost" id="importDataBtn">ייבוא גיבוי</button><input id="importDataFile" type="file" accept="application/json,.json" class="hidden"></div><div class="small" style="margin-top:10px">ייבוא גיבוי מחליף את הנתונים הקיימים באפליקציה במכשיר הזה בלבד.</div></div>
 </main>
 
 <main id="detailView" class="hidden">
@@ -147,6 +147,30 @@ function saveEditor(){syncBasicDraft();const tr=window.editorDraft;if(tr.mode===
 
 function showOnly(id){document.querySelectorAll('main').forEach(m=>m.classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
 function goHome(){currentTrackerId=null;showOnly('activeView');document.getElementById('bottomTabs').classList.remove('hidden');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.main==='activeView'));renderMain()}
+
+function exportData(){
+  try{
+    const payload={app:'personal-tracker',formatVersion:1,exportedAt:new Date().toISOString(),state};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=`personal-tracker-backup-${todayStr()}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
+    toast('קובץ הגיבוי נשמר');
+  }catch(e){toast('לא הצלחנו לייצא את הנתונים')}
+}
+async function importDataFile(file){
+  if(!file)return;
+  try{
+    const raw=await file.text(),parsed=JSON.parse(raw);
+    const imported=parsed&&parsed.state?parsed.state:parsed;
+    if(!imported||!Array.isArray(imported.trackers))throw new Error('invalid');
+    if(!confirm('ייבוא הגיבוי יחליף את כל המעקבים והסימונים הקיימים במכשיר הזה. להמשיך?'))return;
+    state=imported;
+    if(!state.version)state.version=3;
+    save();currentTrackerId=null;editingTrackerId=null;renderMain();goHome();renderNotificationStatus();
+    toast('הגיבוי יובא בהצלחה');
+  }catch(e){toast('קובץ הגיבוי אינו תקין')}
+}
+
 function renderNotificationStatus(){const e=document.getElementById('notificationStatus'),b=document.getElementById('permissionBtn');if(!('Notification'in window)){e.textContent='המכשיר/דפדפן אינו תומך בהתראות.';b.textContent='התראות אינן נתמכות';b.disabled=true;return}if(Notification.permission==='granted'){e.textContent='התראות מאופשרות ✓';b.textContent='התראות פעילות ✓';b.disabled=true}else if(Notification.permission==='denied'){e.textContent='ההתראות חסומות בהגדרות המכשיר/הדפדפן.';b.textContent='התראות חסומות';b.disabled=true}else{e.textContent='עדיין לא ניתנה הרשאה להתראות.';b.textContent='אפשר התראות';b.disabled=false}}
 async function notifyTest(){if(!('Notification'in window)){toast('אין תמיכה בהתראות');return}if(Notification.permission!=='granted'){toast('צריך קודם לאפשר התראות');return}try{const reg=await navigator.serviceWorker?.ready;if(reg)await reg.showNotification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓',icon:'icon.svg'});else new Notification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓'});toast('נשלחה התראת בדיקה')}catch{new Notification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓'});}}
 function checkForegroundReminders(){if(Notification.permission!=='granted')return;const now=new Date(),hm=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,stamp=localDateStr(now)+'_'+hm;state.lastReminder ||= {};state.trackers.filter(t=>t.status==='active').forEach(tr=>{const day=trackerDay(tr);tasksForDay(tr,day).filter(t=>t.notify&&t.time===hm&&!isDone(tr,day,t.id)).forEach(async t=>{const k=tr.id+'_'+t.id+'_'+stamp;if(state.lastReminder[k])return;state.lastReminder[k]=true;save();try{const reg=await navigator.serviceWorker?.ready;if(reg)reg.showNotification(tr.name,{body:`הגיע הזמן: ${t.label}`,icon:'icon.svg'});else new Notification(tr.name,{body:`הגיע הזמן: ${t.label}`})}catch{}})})}
@@ -156,6 +180,7 @@ document.getElementById('newTrackerBtn').onclick=()=>openEditor();document.getEl
 document.getElementById('trackerOpenEnded').onchange=e=>{window.editorDraft.openEnded=e.target.checked;document.getElementById('trackerDuration').disabled=e.target.checked;renderBuilder()};document.getElementById('trackerMode').onchange=e=>{syncBasicDraft();const tr=window.editorDraft;if(e.target.value!==tr.mode){tr.mode=e.target.value;if(tr.mode==='simple'){const allTasks=tr.stages.flatMap(s=>s.tasks);tr.stages=[{id:uid('stage'),from:1,to:tr.duration||30,tasks:allTasks.length?allTasks:[newTask()]}]}else{tr.stages=[{id:uid('stage'),from:1,to:tr.duration||30,tasks:tr.stages[0]?.tasks||[newTask()]}]}}renderBuilder()};document.getElementById('trackerDuration').onchange=()=>{syncBasicDraft();renderBuilder()};
 document.querySelectorAll('.detail-nav button').forEach(b=>b.onclick=()=>{detailSection=b.dataset.detail;renderDetail()});document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{showOnly(t.dataset.main);document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));renderMain()});
 document.getElementById('permissionBtn').onclick=async()=>{if(!('Notification'in window))return;const p=await Notification.requestPermission();renderNotificationStatus();if(p==='granted'){toast('התראות הופעלו');notifyTest()}};document.getElementById('testNotifyBtn').onclick=notifyTest;
+document.getElementById('exportDataBtn').onclick=exportData;document.getElementById('importDataBtn').onclick=()=>document.getElementById('importDataFile').click();document.getElementById('importDataFile').onchange=e=>{const f=e.target.files&&e.target.files[0];importDataFile(f);e.target.value=''};
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').then(()=>navigator.serviceWorker.ready));
 renderMain();setInterval(checkForegroundReminders,30000);setTimeout(checkForegroundReminders,1500);
 </script>
