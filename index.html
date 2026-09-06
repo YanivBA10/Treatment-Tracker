@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f5f7fb" />
+  <title>מעקב טיפול</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    :root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#697386;--line:#e5e9f0;--accent:#2f6fed;--ok:#198754;--warn:#b26a00;--danger:#b42318}
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,"Noto Sans Hebrew",sans-serif;background:var(--bg);color:var(--text)}
+    .app{max-width:560px;margin:0 auto;min-height:100vh;padding:18px 16px 86px}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.title{font-size:24px;font-weight:800}.subtitle{font-size:13px;color:var(--muted);margin-top:3px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 6px 20px rgba(23,32,51,.05)}
+    .dayline{display:flex;justify-content:space-between;gap:12px;align-items:flex-end}.daynum{font-size:28px;font-weight:800}.date{color:var(--muted);font-size:14px}
+    .progress{height:10px;background:#edf0f5;border-radius:99px;overflow:hidden;margin-top:14px}.progress>div{height:100%;background:var(--accent);width:0}
+    .section-title{font-size:15px;font-weight:800;margin:6px 0 10px}.task{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin:9px 0;background:#fff}.task.done{border-color:#b7dfc7;background:#f4fbf7}.task-label{font-size:16px;font-weight:700}.task-meta{font-size:12px;color:var(--muted);margin-top:3px}
+    .check{width:34px;height:34px;border-radius:10px;border:2px solid #c7ced9;background:#fff;font-size:20px;cursor:pointer}.task.done .check{border-color:var(--ok);color:#fff;background:var(--ok)}
+    .empty{color:var(--muted);padding:8px 0}.summary{font-size:14px;color:var(--muted)}
+    .tabs{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;justify-content:center;z-index:10}.tabs-inner{width:min(560px,100%);display:grid;grid-template-columns:repeat(3,1fr)}.tab{padding:12px 6px;text-align:center;font-size:13px;color:var(--muted);cursor:pointer}.tab.active{color:var(--accent);font-weight:800}.tab span{display:block;font-size:20px;margin-bottom:2px}
+    .hidden{display:none}.history-day{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}.history-day:last-child{border-bottom:0}.status{font-size:12px;border-radius:99px;padding:5px 8px;background:#eef1f5;color:var(--muted)}.status.ok{background:#e7f6ed;color:var(--ok)}.status.miss{background:#fff1ef;color:var(--danger)}
+    label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}input{width:100%;padding:11px 12px;border-radius:12px;border:1px solid #cfd6e0;font-size:16px;background:#fff}.btn{width:100%;padding:12px 14px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:16px;font-weight:800;margin-top:14px;cursor:pointer}.btn.secondary{background:#eef3ff;color:var(--accent)}.note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#172033;color:#fff;padding:10px 14px;border-radius:12px;font-size:13px;z-index:30;opacity:0;pointer-events:none;transition:.25s}.toast.show{opacity:1}
+  </style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<div class="app">
+  <header><div><div class="title">מעקב טיפול</div><div class="subtitle">30 יום</div></div><div>🩺</div></header>
+
+  <main id="todayView">
+    <div class="card">
+      <div class="dayline"><div><div class="daynum" id="dayNum">יום 1 מתוך 30</div><div class="date" id="todayDate"></div></div><div class="summary" id="overallSummary"></div></div>
+      <div class="progress"><div id="progressBar"></div></div>
+    </div>
+    <div class="card">
+      <div class="section-title">היום</div>
+      <div id="tasks"></div>
+      <div class="summary" id="daySummary"></div>
+    </div>
+    <div class="card" id="stageCard"><div class="section-title">שלב הטיפול</div><div id="stageText" class="summary"></div></div>
+  </main>
+
+  <main id="historyView" class="hidden">
+    <div class="card"><div class="section-title">היסטוריית 30 הימים</div><div id="historyList"></div></div>
+  </main>
+
+  <main id="settingsView" class="hidden">
+    <div class="card">
+      <div class="section-title">הגדרות</div>
+      <label for="startDate">תאריך תחילת הטיפול</label><input type="date" id="startDate" />
+      <label for="morningTime">שעת תזכורת בוקר</label><input type="time" id="morningTime" value="08:00" />
+      <label for="eveningTime">שעת תזכורת ערב</label><input type="time" id="eveningTime" value="20:00" />
+      <button class="btn" id="saveSettings">שמור הגדרות</button>
+      <button class="btn secondary" id="notifyBtn">אפשר התראות בדפדפן</button>
+      <div class="note">הערה: ב־PWA פשוטה, התראות מתוזמנות כשהאפליקציה סגורה אינן מובטחות בכל מכשירי Android. ההרשאה כאן מאפשרת התראות בזמן שהאפליקציה פעילה; בהמשך נוכל להוסיף פתרון אמין יותר אם יהיה צורך.</div>
+    </div>
+  </main>
+</div>
+
+<nav class="tabs"><div class="tabs-inner">
+  <div class="tab active" data-view="todayView"><span>✓</span>היום</div>
+  <div class="tab" data-view="historyView"><span>▦</span>היסטוריה</div>
+  <div class="tab" data-view="settingsView"><span>⚙</span>הגדרות</div>
+</div></nav>
+
+<script>
+const KEY='treatmentTracker_v1';
+const defaultState={startDate:new Date().toISOString().slice(0,10),morningTime:'08:00',eveningTime:'20:00',done:{}};
+let state=JSON.parse(localStorage.getItem(KEY)||'null')||defaultState;
+function save(){localStorage.setItem(KEY,JSON.stringify(state));}
+function parseLocalDate(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+function fmtDate(d){return new Intl.DateTimeFormat('he-IL',{weekday:'long',day:'numeric',month:'long'}).format(d)}
+function dayIndex(date=new Date()){const a=parseLocalDate(state.startDate);const b=new Date(date.getFullYear(),date.getMonth(),date.getDate());return Math.floor((b-a)/86400000)+1;}
+function tasksForDay(day){
+  if(day<1||day>30)return [];
+  if(day<=20)return [{id:'ointment_morning',label:'משחה',time:'בוקר'},{id:'ointment_evening',label:'משחה',time:'ערב'},{id:'powder_evening',label:'אבקה',time:'ערב'}];
+  if(day<=24)return [{id:'ointment_evening',label:'משחה',time:'ערב'},{id:'powder_evening',label:'אבקה',time:'ערב'}];
+  const ointmentDays=[26,28,30];
+  const arr=[]; if(ointmentDays.includes(day))arr.push({id:'ointment_evening',label:'משחה',time:'ערב'}); arr.push({id:'powder_evening',label:'אבקה',time:'ערב'}); return arr;
+}
+function dayKey(day){return 'day_'+day;}
+function isDone(day,id){return !!(state.done[dayKey(day)]&&state.done[dayKey(day)][id]);}
+function toggle(day,id){state.done[dayKey(day)] ||= {};state.done[dayKey(day)][id]=!state.done[dayKey(day)][id];save();renderAll();}
+function overallCompletion(){let total=0,done=0;for(let d=1;d<=30;d++){for(const t of tasksForDay(d)){total++;if(isDone(d,t.id))done++;}}return {total,done,pct:Math.round(done/total*100)}}
+function stage(day){if(day<1)return 'הטיפול עדיין לא התחיל.';if(day<=20)return 'ימים 1–20: משחה בבוקר, משחה בערב ואבקה בערב.';if(day<=24)return 'ימים 21–24: משחה פעם אחת בערב ואבקה בערב.';if(day===25)return 'יום 25: אבקה בערב בלבד.';if(day<=30)return day%2===0?'שלב יום כן/יום לא: היום יש משחה בערב + אבקה בערב.':'שלב יום כן/יום לא: היום יש אבקה בערב בלבד.';return 'הטיפול בן 30 הימים הסתיים.'}
+function renderToday(){const day=dayIndex();document.getElementById('todayDate').textContent=fmtDate(new Date());document.getElementById('dayNum').textContent=day<1?'לפני תחילת הטיפול':day>30?'הטיפול הסתיים':`יום ${day} מתוך 30`;
+  const all=overallCompletion();document.getElementById('progressBar').style.width=all.pct+'%';document.getElementById('overallSummary').textContent=`${all.done}/${all.total} פעולות`;
+  const box=document.getElementById('tasks');box.innerHTML='';const tasks=tasksForDay(day);if(!tasks.length){box.innerHTML='<div class="empty">אין פעולות טיפול ליום זה.</div>';document.getElementById('daySummary').textContent='';} else {tasks.forEach(t=>{const done=isDone(day,t.id);const div=document.createElement('div');div.className='task'+(done?' done':'');div.innerHTML=`<div><div class="task-label">${t.label}</div><div class="task-meta">${t.time}</div></div><button class="check" aria-label="סמן ${t.label} ${t.time}">${done?'✓':''}</button>`;div.querySelector('button').onclick=()=>toggle(day,t.id);box.appendChild(div)});const d=tasks.filter(t=>isDone(day,t.id)).length;document.getElementById('daySummary').textContent=`${d} מתוך ${tasks.length} הושלמו היום`;}
+  document.getElementById('stageText').textContent=stage(day);
+}
+function renderHistory(){const list=document.getElementById('historyList');list.innerHTML='';const today=dayIndex();for(let d=1;d<=30;d++){const tasks=tasksForDay(d);const done=tasks.filter(t=>isDone(d,t.id)).length;const date=parseLocalDate(state.startDate);date.setDate(date.getDate()+d-1);let cls='',txt=`${done}/${tasks.length}`;if(d<today){if(done===tasks.length){cls='ok';txt='הושלם'}else{cls='miss';txt=`${done}/${tasks.length}`}} else if(d===today){txt='היום · '+done+'/'+tasks.length}
+    const row=document.createElement('div');row.className='history-day';row.innerHTML=`<div><strong>יום ${d}</strong><div class="task-meta">${new Intl.DateTimeFormat('he-IL',{day:'2-digit',month:'2-digit'}).format(date)}</div></div><div class="status ${cls}">${txt}</div>`;list.appendChild(row);}}
+function renderSettings(){document.getElementById('startDate').value=state.startDate;document.getElementById('morningTime').value=state.morningTime;document.getElementById('eveningTime').value=state.eveningTime;}
+function renderAll(){renderToday();renderHistory();renderSettings();}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
+document.getElementById('saveSettings').onclick=()=>{state.startDate=document.getElementById('startDate').value||state.startDate;state.morningTime=document.getElementById('morningTime').value;state.eveningTime=document.getElementById('eveningTime').value;save();renderAll();toast('ההגדרות נשמרו');}
+document.getElementById('notifyBtn').onclick=async()=>{if(!('Notification' in window)){toast('הדפדפן לא תומך בהתראות');return;}const p=await Notification.requestPermission();if(p==='granted'){new Notification('מעקב טיפול',{body:'ההתראות הופעלו בהצלחה.'});toast('התראות הופעלו');}else toast('לא ניתנה הרשאה להתראות');}
+document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{document.querySelectorAll('main').forEach(m=>m.classList.add('hidden'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById(tab.dataset.view).classList.remove('hidden');tab.classList.add('active');});
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));
+renderAll();
+</script>
+</body></html>
