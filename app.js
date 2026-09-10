@@ -38,9 +38,9 @@ function showConfirm({title,message,confirmText='אישור',danger=false,cancel
 
 function loadState(){
   const existing=JSON.parse(localStorage.getItem(APP_KEY)||'null');
-  if(existing){existing.version=5;existing.settings||={theme:'system'};if(!existing.settings.theme)existing.settings.theme='system';existing.trackers||=[];existing.reminders||=[];existing.tasks||=[];for(const wt of existing.tasks)if(wt.showOnMain==null)wt.showOnMain=false;for(const tr of existing.trackers)for(const s of (tr.stages||[]))for(const t of (s.tasks||[]))if(t.description==null)t.description='';return existing;}
+  if(existing){existing.version=6;existing.settings||={theme:'system'};if(!existing.settings.theme)existing.settings.theme='system';existing.trackers||=[];existing.reminders||=[];existing.tasks||=[];for(const wt of existing.tasks)if(wt.showOnMain==null)wt.showOnMain=false;for(const tr of existing.trackers)for(const s of (tr.stages||[]))for(const t of (s.tasks||[]))if(t.description==null)t.description='';return existing;}
   const old=JSON.parse(localStorage.getItem(OLD_KEY)||'null');
-  const base={version:5,trackers:[],reminders:[],tasks:[],settings:{theme:'system'}};
+  const base={version:6,trackers:[],reminders:[],tasks:[],settings:{theme:'system'}};
   if(old){base.trackers.push(migrateOld(old));localStorage.setItem(APP_KEY,JSON.stringify(base));}
   return base;
 }
@@ -175,8 +175,9 @@ function renderSubtaskEditor(){const host=document.getElementById('subtasksEdito
 function addSubtask(){window.taskDraft.subtasks||=[];window.taskDraft.subtasks.push({id:uid('subtask'),title:'',done:false});renderSubtaskEditor()}
 function saveTaskEditor(){const t=window.taskDraft;t.title=document.getElementById('workTaskTitle').value.trim();t.description=document.getElementById('workTaskDescription').value.trim();t.dueDate=document.getElementById('workTaskDueDate').value||'';t.reminderDate=document.getElementById('workTaskReminderDate').value||'';t.reminderTime=document.getElementById('workTaskReminderTime').value||'';t.showOnMain=document.getElementById('workTaskShowOnMain').checked;t.subtasks=(t.subtasks||[]).filter(x=>(x.title||'').trim()).map(x=>({...x,title:x.title.trim()}));if(!t.title){toast('צריך לתת שם למשימה.');return}state.tasks||=[];if(t.id){state.tasks[state.tasks.findIndex(x=>x.id===t.id)]=t}else{t.id=uid('worktask');t.createdAt=Date.now();state.tasks.push(t)}save();replaceRoute({route:'main',view:'tasksView'});toast('המשימה נשמרה')}
 async function deleteCurrentTask(){const t=window.taskDraft;if(!t?.id)return;const ok=await showConfirm({title:'למחוק את המשימה?',message:`"${t.title}" תימחק לצמיתות.`,confirmText:'מחק לצמיתות',danger:true});if(!ok)return;state.tasks=state.tasks.filter(x=>x.id!==t.id);save();replaceRoute({route:'main',view:'tasksView'});toast('המשימה נמחקה')}
-function setRelativeReminder(minutes){const d=new Date(Date.now()+minutes*60000),dateEl=document.getElementById('reminderDate'),timeEl=document.getElementById('reminderTime'),fb=document.getElementById('relativeTimeFeedback');dateEl.value=localDateStr(d);timeEl.value=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;document.getElementById('reminderRepeat').value='once';const label=minutes<60?`${minutes} דקות`:minutes===60?'שעה':minutes===120?'שעתיים':`${Math.round(minutes/60)} שעות`;fb.textContent=`נקבע לעוד ${label} → ${timeEl.value}`;fb.classList.add('show');timeEl.classList.remove('time-flash');void timeEl.offsetWidth;timeEl.classList.add('time-flash');setTimeout(()=>fb.classList.remove('show'),3500)}
-function setCustomRelativeReminder(){const amount=Math.max(1,Number(document.getElementById('customRelativeAmount').value||0)),unit=document.getElementById('customRelativeUnit').value;if(!amount){toast('צריך להזין זמן');return}setRelativeReminder(unit==='hours'?amount*60:amount)}
+function setRelativeReminder(minutes){const d=new Date(Date.now()+minutes*60000),dateEl=document.getElementById('reminderDate'),timeEl=document.getElementById('reminderTime');dateEl.value=localDateStr(d);timeEl.value=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;document.getElementById('reminderRepeat').value='once';timeEl.classList.remove('time-flash');void timeEl.offsetWidth;timeEl.classList.add('time-flash')}
+function setCustomRelativeReminder(){const raw=Number(document.getElementById('customRelativeAmount').value||0);if(!raw||raw<1)return;const unit=document.getElementById('customRelativeUnit').value;setRelativeReminder(unit==='hours'?raw*60:raw)}
+function toggleCustomRelative(){document.getElementById('relativeCustomWrap')?.classList.toggle('hidden')}
 function reminderSortKey(r){return `${r.date||'9999-12-31'}T${r.time||'23:59'}|${r.title||''}`}
 function reminderRepeatLabel(r){return r.repeat==='daily'?'כל יום':r.repeat==='weekly'?'כל שבוע':'חד־פעמית'}
 function reminderDueToday(r){
@@ -352,7 +353,7 @@ async function importDataFile(file){
     if(!imported||!Array.isArray(imported.trackers))throw new Error('invalid');
     const ok=await showConfirm({title:'לייבא את הגיבוי?',message:'הייבוא יחליף את כל המעקבים והסימונים הקיימים במכשיר הזה.',confirmText:'ייבוא'});if(!ok)return;
     state=imported;state.settings||={theme:'system'};
-    state.version=5;state.settings||={theme:'system'};state.reminders||=[];state.tasks||=[];
+    state.version=6;state.settings||={theme:'system'};state.reminders||=[];state.tasks||=[];
     save();currentTrackerId=null;editingTrackerId=null;renderMain();goHome();renderNotificationStatus();
     toast('הגיבוי יובא בהצלחה');
   }catch(e){toast('קובץ הגיבוי אינו תקין')}
@@ -370,7 +371,19 @@ async function syncPushState(){
   if(!PUSH_API||Notification.permission!=='granted')return false;
   const sub=await getPushSubscription();if(!sub)return false;
   const payload={deviceId:deviceId(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',subscription:sub.toJSON(),state:{version:state.version,trackers:state.trackers,reminders:state.reminders||[],tasks:state.tasks||[]}};
-  const r=await fetch(PUSH_API+'/state',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});return r.ok
+  const r=await fetch(PUSH_API+'/state',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+  if(!r.ok)return false;
+  try{
+    const data=await r.json();
+    if(data?.state&&Number(data.appliedActions||0)>0){
+      state.trackers=data.state.trackers||[];
+      state.reminders=data.state.reminders||[];
+      state.tasks=data.state.tasks||[];
+      localStorage.setItem(APP_KEY,JSON.stringify(state));
+      renderMain();
+    }
+  }catch{}
+  return true
 }
 async function renderNotificationStatus(){
   const e=document.getElementById('notificationStatus'),b=document.getElementById('permissionBtn'),note=document.getElementById('pushStatusNote');
@@ -399,7 +412,7 @@ async function notifyTest(){
   try{const reg=await navigator.serviceWorker?.ready;if(reg)await reg.showNotification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓',icon:'icon.svg',badge:'icon.svg'});else new Notification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓'});toast('נשלחה התראת בדיקה')}catch{new Notification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓'});}
 }
 // events
-document.getElementById('customRelativeSetBtn').onclick=setCustomRelativeReminder;document.getElementById('taskDetailBack').onclick=()=>history.back();document.getElementById('openToolsBtn').onclick=()=>document.getElementById('toolsMenu').classList.toggle('hidden');document.getElementById('toolsSettingsBtn').onclick=()=>{document.getElementById('toolsMenu').classList.add('hidden');pushRoute({route:'main',view:'appSettingsView'})};document.getElementById('toolsArchiveBtn').onclick=()=>{document.getElementById('toolsMenu').classList.add('hidden');pushRoute({route:'main',view:'archiveView'})};
+document.getElementById('customRelativeToggleBtn').onclick=toggleCustomRelative;document.getElementById('customRelativeAmount').onchange=setCustomRelativeReminder;document.getElementById('customRelativeUnit').onchange=setCustomRelativeReminder;document.getElementById('taskDetailBack').onclick=()=>history.back();document.getElementById('openToolsBtn').onclick=()=>document.getElementById('toolsMenu').classList.toggle('hidden');document.getElementById('toolsSettingsBtn').onclick=()=>{document.getElementById('toolsMenu').classList.add('hidden');pushRoute({route:'main',view:'appSettingsView'})};document.getElementById('toolsArchiveBtn').onclick=()=>{document.getElementById('toolsMenu').classList.add('hidden');pushRoute({route:'main',view:'archiveView'})};
 document.getElementById('newTrackerBtn').onclick=()=>openEditor();document.getElementById('newReminderBtn').onclick=()=>openReminderEditor();document.getElementById('newTaskBtn').onclick=()=>openTaskEditor();document.getElementById('backToTrackers').onclick=()=>replaceRoute({route:'main',view:'trackersView'});document.getElementById('cancelEditor').onclick=()=>history.back();document.getElementById('saveTrackerBtn').onclick=saveEditor;
 document.getElementById('trackerOpenEnded').onchange=e=>{window.editorDraft.openEnded=e.target.checked;document.getElementById('trackerDuration').disabled=e.target.checked;syncBasicDraft();renderBuilder()};
 document.getElementById('trackerMode').onchange=e=>{syncBasicDraft();const tr=window.editorDraft;if(e.target.value!==tr.mode){tr.mode=e.target.value;if(tr.mode==='simple'){const allTasks=tr.stages.flatMap(s=>s.tasks);tr.stages=[{id:uid('stage'),from:1,to:tr.openEnded?99999:(tr.duration||1),tasks:allTasks.length?allTasks:[newTask()]}]}else{tr.stages=[{id:uid('stage'),from:1,to:tr.openEnded?1:(tr.duration||1),tasks:tr.stages[0]?.tasks||[newTask()]}]}}renderBuilder()};
@@ -412,4 +425,12 @@ document.getElementById('themeSelect').onchange=e=>{state.settings||={};state.se
 document.getElementById('exportDataBtn').onclick=exportData;document.getElementById('importDataBtn').onclick=()=>document.getElementById('importDataFile').click();document.getElementById('importDataFile').onchange=e=>{const f=e.target.files&&e.target.files[0];importDataFile(f);e.target.value=''};
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').then(()=>navigator.serviceWorker.ready));
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if((state.settings?.theme||'system')==='system')applyTheme()});
-applyTheme();setupNavigation();setTimeout(()=>{renderNotificationStatus();syncPushState().catch(()=>{})},1200);
+function handleLaunchLink(){
+  const p=new URLSearchParams(location.search);const tracker=p.get('openTracker'),rem=p.get('openReminder'),task=p.get('openTask');
+  if(tracker&&state.trackers.some(x=>x.id===tracker))openTracker(tracker);
+  else if(task&&(state.tasks||[]).some(x=>x.id===task))openTaskDetail(task);
+  else if(rem&&(state.reminders||[]).some(x=>x.id===rem))openReminderEditor(rem);
+  if(tracker||rem||task)history.replaceState(history.state,'',location.pathname);
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncPushState().catch(()=>{})});
+applyTheme();setupNavigation();handleLaunchLink();setTimeout(()=>{renderNotificationStatus();syncPushState().catch(()=>{})},1200);
