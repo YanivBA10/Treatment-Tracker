@@ -60,6 +60,8 @@ html[data-theme="dark"] .status.miss{background:#3a2020}
 
 
 .task-description,.reminder-description{font-size:13px;color:var(--muted);line-height:1.45;margin-top:4px;white-space:pre-wrap}.optional{font-weight:500;color:var(--muted)}.quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.reminder-card{padding:14px 15px;border:1px solid var(--line);border-radius:18px;margin:10px 0;background:var(--surface);cursor:pointer}.reminder-card.completed{opacity:.78}.reminder-main{display:flex;align-items:center;gap:12px}.reminder-check{flex:0 0 auto}.empty.compact{padding:12px 6px}.subsection{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+
+.completed-today{margin-top:12px;padding:10px 12px;border-radius:13px;background:color-mix(in srgb,var(--ok) 12%,var(--surface));color:var(--ok);font-weight:800}.history-hint{margin:6px 0 8px}.history-modal{max-height:min(78vh,680px);display:flex;flex-direction:column}.history-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.history-modal-head h3{margin-bottom:2px}.history-modal-close{border:0;background:transparent;color:var(--muted);font-size:27px;line-height:1;padding:2px 5px;cursor:pointer}.history-modal-tasks{overflow:auto;margin-top:14px;padding-inline-end:2px}.history-modal .modal-actions{flex:0 0 auto}.history-modal .task{margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -123,6 +125,14 @@ html[data-theme="dark"] .status.miss{background:#3a2020}
       <button class="btn ghost" id="modalCancel">ביטול</button>
       <button class="btn" id="modalConfirm">אישור</button>
     </div>
+  </div>
+</div>
+
+<div id="historyModalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
+  <div class="modal history-modal">
+    <div class="history-modal-head"><div><h3 id="historyModalTitle">עדכון יום</h3><div class="small" id="historyModalDate"></div></div><button id="historyModalClose" class="history-modal-close" aria-label="סגור">×</button></div>
+    <div id="historyModalTasks" class="history-modal-tasks"></div>
+    <div class="modal-actions"><button class="btn block" id="historyModalDone">סיימתי</button></div>
   </div>
 </div>
 
