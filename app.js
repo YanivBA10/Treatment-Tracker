@@ -38,7 +38,7 @@ function showConfirm({title,message,confirmText='אישור',danger=false,cancel
 
 function loadState(){
   const existing=JSON.parse(localStorage.getItem(APP_KEY)||'null');
-  if(existing){existing.version=5;existing.settings||={theme:'system'};if(!existing.settings.theme)existing.settings.theme='system';existing.trackers||=[];existing.reminders||=[];existing.tasks||=[];for(const tr of existing.trackers)for(const s of (tr.stages||[]))for(const t of (s.tasks||[]))if(t.description==null)t.description='';return existing;}
+  if(existing){existing.version=5;existing.settings||={theme:'system'};if(!existing.settings.theme)existing.settings.theme='system';existing.trackers||=[];existing.reminders||=[];existing.tasks||=[];for(const wt of existing.tasks)if(wt.showOnMain==null)wt.showOnMain=false;for(const tr of existing.trackers)for(const s of (tr.stages||[]))for(const t of (s.tasks||[]))if(t.description==null)t.description='';return existing;}
   const old=JSON.parse(localStorage.getItem(OLD_KEY)||'null');
   const base={version:5,trackers:[],reminders:[],tasks:[],settings:{theme:'system'}};
   if(old){base.trackers.push(migrateOld(old));localStorage.setItem(APP_KEY,JSON.stringify(base));}
@@ -112,10 +112,21 @@ function taskDueState(t){
 function taskProgress(t){const a=t.subtasks||[];return {done:a.filter(x=>x.done).length,total:a.length}}
 function taskCard(t,compact=false){
   const el=document.createElement('div');const due=taskDueState(t),pr=taskProgress(t);el.className='work-task'+(t.status==='completed'?' completed':'')+(due==='overdue'?' overdue':'');
-  const meta=[];if(t.dueDate)meta.push(`${due==='overdue'?'באיחור · ':''}${fmtDate(parseDate(t.dueDate),true)}`);if(t.reminderDate&&t.reminderTime)meta.push(`🔔 ${fmtDate(parseDate(t.reminderDate),true)} ${t.reminderTime}`);if(pr.total)meta.push(`${pr.done}/${pr.total} שלבים`);
+  const meta=[];if(t.dueDate)meta.push(`${due==='overdue'?'באיחור · ':''}${fmtDate(parseDate(t.dueDate),true)}`);if(t.reminderDate&&t.reminderTime)meta.push(`🔔 ${fmtDate(parseDate(t.reminderDate),true)} ${t.reminderTime}`);if(pr.total)meta.push(`${pr.done}/${pr.total} שלבים`);if(t.showOnMain&&t.status!=='completed')meta.push('מוצג בראשי');
   el.innerHTML=`<div class="reminder-main"><div class="grow"><div class="tracker-name">${esc(t.title)}</div>${!compact&&t.description?`<div class="reminder-description">${esc(t.description)}</div>`:''}${meta.length?`<div class="task-meta">${meta.join(' · ')}</div>`:''}</div><button class="check reminder-check" aria-label="סימון בוצע">${t.status==='completed'?'✓':''}</button></div>`;
-  el.querySelector('.reminder-check').onclick=e=>{e.stopPropagation();t.status=t.status==='completed'?'active':'completed';t.completedAt=t.status==='completed'?Date.now():null;save();renderMain();toast(t.status==='completed'?'המשימה הושלמה':'המשימה נפתחה מחדש')};
-  el.onclick=()=>openTaskEditor(t.id);return el;
+  el.querySelector('.reminder-check').onclick=e=>{e.stopPropagation();setWholeTaskDone(t,t.status!=='completed')};
+  el.onclick=()=>openTaskDetail(t.id);return el;
+}
+function setWholeTaskDone(t,done){
+  t.status=done?'completed':'active';t.completedAt=done?Date.now():null;
+  if((t.subtasks||[]).length)t.subtasks.forEach(st=>st.done=done);
+  save();renderMain();if(renderedRoute?.route==='taskDetail')renderTaskDetailRoute(t.id);toast(done?'המשימה הושלמה':'המשימה נפתחה מחדש');
+}
+function toggleSubtask(t,subId){
+  const st=(t.subtasks||[]).find(x=>x.id===subId);if(!st)return;st.done=!st.done;
+  const all=(t.subtasks||[]).length>0&&(t.subtasks||[]).every(x=>x.done);
+  if(all){t.status='completed';t.completedAt=Date.now()}else if(t.status==='completed'){t.status='active';t.completedAt=null}
+  save();renderMain();renderTaskDetailRoute(t.id);
 }
 function renderTasksList(){
   const box=document.getElementById('tasksList'),done=document.getElementById('completedTasks');if(!box)return;box.innerHTML='';
@@ -123,28 +134,49 @@ function renderTasksList(){
   if(!active.length)box.innerHTML='<div class="empty">אין משימות פתוחות.</div>';else active.forEach(t=>box.appendChild(taskCard(t)));
   if(done){done.innerHTML='';const arr=(state.tasks||[]).filter(t=>t.status==='completed').sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));if(!arr.length)done.innerHTML='<div class="empty compact">אין משימות שהושלמו.</div>';else arr.slice(0,20).forEach(t=>done.appendChild(taskCard(t,true)));}
 }
+function itemShell(kind,title,meta,onClick){const el=document.createElement('div');el.className='focus-item '+kind;el.innerHTML=`<div class="focus-dot"></div><div class="grow"><div class="focus-title">${esc(title)}</div>${meta?`<div class="task-meta">${meta}</div>`:''}</div><span class="focus-arrow">‹</span>`;el.onclick=onClick;return el}
 function renderTodayDashboard(){
-  const trackerBox=document.getElementById('todayTrackers'),taskBox=document.getElementById('todayTasks'),remBox=document.getElementById('todayReminders');if(!trackerBox)return;
-  trackerBox.innerHTML='';taskBox.innerHTML='';remBox.innerHTML='';
-  const trs=state.trackers.filter(t=>t.status==='active').filter(t=>{const st=todayStats(t);return st.day>=1&&st.total>0&&st.done<st.total});
-  if(!trs.length)trackerBox.innerHTML='<div class="empty compact">אין פעולות מעקב פתוחות להיום.</div>';else trs.forEach(t=>trackerBox.appendChild(trackerCard(t)));
-  const tasks=(state.tasks||[]).filter(t=>t.status!=='completed'&&['today','overdue'].includes(taskDueState(t)));
-  if(!tasks.length)taskBox.innerHTML='<div class="empty compact">אין משימות להיום.</div>';else tasks.forEach(t=>taskBox.appendChild(taskCard(t,true)));
-  const rs=(state.reminders||[]).filter(r=>r.status!=='completed'&&reminderDueToday(r)&&!reminderDoneToday(r));
-  if(!rs.length)remBox.innerHTML='<div class="empty compact">אין תזכורות פתוחות להיום.</div>';else rs.forEach(r=>remBox.appendChild(reminderCard(r,false)));
+  const attention=document.getElementById('mainAttention'),active=document.getElementById('mainActive'),later=document.getElementById('mainLater');if(!attention)return;
+  attention.innerHTML='';active.innerHTML='';later.innerHTML='';
+  let count=0;
+  for(const tr of state.trackers.filter(t=>t.status==='active')){const st=todayStats(tr);if(st.day>=1&&st.total>0&&st.done<st.total){attention.appendChild(itemShell('tracker-focus',tr.name,`${st.done}/${st.total} פעולות הושלמו היום`,()=>openTracker(tr.id)));count++}}
+  const overdue=(state.tasks||[]).filter(t=>t.status!=='completed'&&taskDueState(t)==='overdue');
+  const dueToday=(state.tasks||[]).filter(t=>t.status!=='completed'&&taskDueState(t)==='today');
+  for(const t of [...overdue,...dueToday]){attention.appendChild(itemShell('task-focus',t.title,taskDueState(t)==='overdue'?`באיחור · יעד ${fmtDate(parseDate(t.dueDate),true)}`:'יעד היום',()=>openTaskDetail(t.id)));count++}
+  const todayR=(state.reminders||[]).filter(r=>r.status!=='completed'&&reminderDueToday(r)&&!reminderDoneToday(r));
+  for(const r of todayR){attention.appendChild(itemShell('reminder-focus',r.title,`${r.time} · ${reminderRepeatLabel(r)}`,()=>openReminderEditor(r.id)));count++}
+  if(!count)attention.innerHTML='<div class="empty compact">אין כרגע דברים שדורשים תשומת לב.</div>';
+  const activeTasks=(state.tasks||[]).filter(t=>t.status!=='completed'&&t.showOnMain&&!['overdue','today'].includes(taskDueState(t)));
+  if(!activeTasks.length)active.innerHTML='<div class="empty compact">אין משימות שסומנו כפעילות עכשיו.</div>';else activeTasks.forEach(t=>active.appendChild(taskCard(t,true)));
+  const future=[];
+  for(const t of (state.tasks||[]).filter(t=>t.status!=='completed'&&t.dueDate&&t.dueDate>todayStr()&&!t.showOnMain))future.push({k:t.dueDate+'T23:59',node:()=>itemShell('task-focus',t.title,`יעד ${fmtDate(parseDate(t.dueDate),true)}`,()=>openTaskDetail(t.id))});
+  for(const r of (state.reminders||[]).filter(r=>r.status!=='completed'&&r.date>todayStr()))future.push({k:r.date+'T'+(r.time||'23:59'),node:()=>itemShell('reminder-focus',r.title,`${fmtDate(parseDate(r.date),true)} · ${r.time}`,()=>openReminderEditor(r.id))});
+  future.sort((a,b)=>a.k.localeCompare(b.k));if(!future.length)later.innerHTML='<div class="empty compact">אין דברים קרובים בהמשך.</div>';else future.slice(0,4).forEach(x=>later.appendChild(x.node()));
+}
+function openTaskDetail(id){pushRoute({route:'taskDetail',taskId:id})}
+function renderTaskDetailRoute(id){
+  const t=(state.tasks||[]).find(x=>x.id===id);if(!t){replaceRoute({route:'main',view:'tasksView'});return}
+  showOnly('taskDetailView');document.getElementById('bottomTabs').classList.add('hidden');
+  document.getElementById('taskDetailTitle').textContent=t.title;document.getElementById('taskDetailDescription').textContent=t.description||'';document.getElementById('taskDetailDescription').classList.toggle('hidden',!t.description);
+  const pr=taskProgress(t),meta=[];if(t.dueDate)meta.push(`${taskDueState(t)==='overdue'?'באיחור · ':''}יעד ${fmtDate(parseDate(t.dueDate),true)}`);if(t.reminderDate&&t.reminderTime)meta.push(`🔔 ${fmtDate(parseDate(t.reminderDate),true)} ${t.reminderTime}`);meta.push(t.status==='completed'?'הושלמה':'פתוחה');document.getElementById('taskDetailMeta').textContent=meta.join(' · ');
+  const host=document.getElementById('taskDetailSubtasks');host.innerHTML='';
+  if(!(t.subtasks||[]).length)host.innerHTML='<div class="empty compact">למשימה הזו אין שלבים.</div>';else for(const st of t.subtasks){const row=document.createElement('div');row.className='task'+(st.done?' done':'');row.innerHTML=`<div class="grow"><div class="task-label">${esc(st.title)}</div></div><button class="check">${st.done?'✓':''}</button>`;row.querySelector('button').onclick=()=>toggleSubtask(t,st.id);host.appendChild(row)}
+  document.getElementById('taskDetailProgress').textContent=pr.total?`${pr.done}/${pr.total} שלבים הושלמו`:'';
+  document.getElementById('taskDetailDoneBtn').textContent=t.status==='completed'?'פתח מחדש':'סמן משימה כהושלמה';document.getElementById('taskDetailDoneBtn').onclick=()=>setWholeTaskDone(t,t.status!=='completed');document.getElementById('taskDetailEditBtn').onclick=()=>openTaskEditor(t.id);
 }
 function openTaskEditor(id=null){pushRoute({route:'taskEditor',taskId:id||null})}
 function renderTaskEditorRoute(id=null){
   showOnly('taskEditorView');document.getElementById('bottomTabs').classList.add('hidden');editingTaskId=id;
   const found=id?(state.tasks||[]).find(t=>t.id===id):null;if(id&&!found){replaceRoute({route:'main',view:'tasksView'});return}
-  const t=found?JSON.parse(JSON.stringify(found)):{id:null,title:'',description:'',dueDate:'',reminderDate:'',reminderTime:'',status:'active',subtasks:[]};window.taskDraft=t;
-  document.getElementById('taskEditorTitle').textContent=id?'עריכת משימה':'משימה חדשה';document.getElementById('workTaskTitle').value=t.title||'';document.getElementById('workTaskDescription').value=t.description||'';document.getElementById('workTaskDueDate').value=t.dueDate||'';document.getElementById('workTaskReminderDate').value=t.reminderDate||'';document.getElementById('workTaskReminderTime').value=t.reminderTime||'';document.getElementById('deleteTaskBtn').classList.toggle('hidden',!id);renderSubtaskEditor();
+  const t=found?JSON.parse(JSON.stringify(found)):{id:null,title:'',description:'',dueDate:'',reminderDate:'',reminderTime:'',status:'active',subtasks:[],showOnMain:false};window.taskDraft=t;
+  document.getElementById('taskEditorTitle').textContent=id?'עריכת משימה':'משימה חדשה';document.getElementById('workTaskTitle').value=t.title||'';document.getElementById('workTaskDescription').value=t.description||'';document.getElementById('workTaskDueDate').value=t.dueDate||'';document.getElementById('workTaskReminderDate').value=t.reminderDate||'';document.getElementById('workTaskReminderTime').value=t.reminderTime||'';document.getElementById('workTaskShowOnMain').checked=!!t.showOnMain;document.getElementById('deleteTaskBtn').classList.toggle('hidden',!id);renderSubtaskEditor();
 }
 function renderSubtaskEditor(){const host=document.getElementById('subtasksEditor');host.innerHTML='';(window.taskDraft.subtasks||[]).forEach((st,i)=>{const row=document.createElement('div');row.className='subtask-edit';row.innerHTML=`<input value="${esc(st.title||'')}" placeholder="שלב / תת-משימה"><button class="icon-btn" type="button">×</button>`;row.querySelector('input').oninput=e=>st.title=e.target.value;row.querySelector('button').onclick=()=>{window.taskDraft.subtasks.splice(i,1);renderSubtaskEditor()};host.appendChild(row)})}
 function addSubtask(){window.taskDraft.subtasks||=[];window.taskDraft.subtasks.push({id:uid('subtask'),title:'',done:false});renderSubtaskEditor()}
-function saveTaskEditor(){const t=window.taskDraft;t.title=document.getElementById('workTaskTitle').value.trim();t.description=document.getElementById('workTaskDescription').value.trim();t.dueDate=document.getElementById('workTaskDueDate').value||'';t.reminderDate=document.getElementById('workTaskReminderDate').value||'';t.reminderTime=document.getElementById('workTaskReminderTime').value||'';t.subtasks=(t.subtasks||[]).filter(x=>(x.title||'').trim()).map(x=>({...x,title:x.title.trim()}));if(!t.title){toast('צריך לתת שם למשימה.');return}state.tasks||=[];if(t.id){state.tasks[state.tasks.findIndex(x=>x.id===t.id)]=t}else{t.id=uid('worktask');t.createdAt=Date.now();state.tasks.push(t)}save();replaceRoute({route:'main',view:'tasksView'});toast('המשימה נשמרה')}
+function saveTaskEditor(){const t=window.taskDraft;t.title=document.getElementById('workTaskTitle').value.trim();t.description=document.getElementById('workTaskDescription').value.trim();t.dueDate=document.getElementById('workTaskDueDate').value||'';t.reminderDate=document.getElementById('workTaskReminderDate').value||'';t.reminderTime=document.getElementById('workTaskReminderTime').value||'';t.showOnMain=document.getElementById('workTaskShowOnMain').checked;t.subtasks=(t.subtasks||[]).filter(x=>(x.title||'').trim()).map(x=>({...x,title:x.title.trim()}));if(!t.title){toast('צריך לתת שם למשימה.');return}state.tasks||=[];if(t.id){state.tasks[state.tasks.findIndex(x=>x.id===t.id)]=t}else{t.id=uid('worktask');t.createdAt=Date.now();state.tasks.push(t)}save();replaceRoute({route:'main',view:'tasksView'});toast('המשימה נשמרה')}
 async function deleteCurrentTask(){const t=window.taskDraft;if(!t?.id)return;const ok=await showConfirm({title:'למחוק את המשימה?',message:`"${t.title}" תימחק לצמיתות.`,confirmText:'מחק לצמיתות',danger:true});if(!ok)return;state.tasks=state.tasks.filter(x=>x.id!==t.id);save();replaceRoute({route:'main',view:'tasksView'});toast('המשימה נמחקה')}
-function setRelativeReminder(minutes){const d=new Date(Date.now()+minutes*60000);document.getElementById('reminderDate').value=localDateStr(d);document.getElementById('reminderTime').value=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;document.getElementById('reminderRepeat').value='once';toast(`נקבע לעוד ${minutes<60?minutes+' דקות':minutes===60?'שעה':minutes===120?'שעתיים':Math.round(minutes/60)+' שעות'}`)}
+function setRelativeReminder(minutes){const d=new Date(Date.now()+minutes*60000),dateEl=document.getElementById('reminderDate'),timeEl=document.getElementById('reminderTime'),fb=document.getElementById('relativeTimeFeedback');dateEl.value=localDateStr(d);timeEl.value=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;document.getElementById('reminderRepeat').value='once';const label=minutes<60?`${minutes} דקות`:minutes===60?'שעה':minutes===120?'שעתיים':`${Math.round(minutes/60)} שעות`;fb.textContent=`נקבע לעוד ${label} → ${timeEl.value}`;fb.classList.add('show');timeEl.classList.remove('time-flash');void timeEl.offsetWidth;timeEl.classList.add('time-flash');setTimeout(()=>fb.classList.remove('show'),3500)}
+function setCustomRelativeReminder(){const amount=Math.max(1,Number(document.getElementById('customRelativeAmount').value||0)),unit=document.getElementById('customRelativeUnit').value;if(!amount){toast('צריך להזין זמן');return}setRelativeReminder(unit==='hours'?amount*60:amount)}
 function reminderSortKey(r){return `${r.date||'9999-12-31'}T${r.time||'23:59'}|${r.title||''}`}
 function reminderRepeatLabel(r){return r.repeat==='daily'?'כל יום':r.repeat==='weekly'?'כל שבוע':'חד־פעמית'}
 function reminderDueToday(r){
@@ -285,8 +317,8 @@ function saveEditor(){
   save();renderMain();goHome();toast('המעקב נשמר')
 }
 function showOnly(id){document.querySelectorAll('main').forEach(m=>m.classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
-function renderMainRoute(view='todayView'){currentTrackerId=null;editingTrackerId=null;editingTaskId=null;showOnly(view);document.getElementById('bottomTabs').classList.remove('hidden');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.main===view));const titles={todayView:['היום','מה דורש תשומת לב עכשיו'],trackersView:['מעקבים','תהליכים חוזרים והתקדמות'],tasksView:['משימות','דברים שצריך לסיים'],remindersView:['תזכורות','דברים שצריכים לקפוץ בזמן'],archiveView:['ארכיון','דברים שהושלמו או הועברו לארכיון'],appSettingsView:['הגדרות','מראה, התראות וגיבוי']};const [a,b]=titles[view]||titles.todayView;document.getElementById('appTitle').textContent=a;document.getElementById('appSubtitle').textContent=b;renderMain();}
-function applyRoute(r){if(!r||!r.app||r.route==='exit')return;renderedRoute=r;if(r.route==='main')renderMainRoute(r.view||'activeView');else if(r.route==='detail')renderTrackerRoute(r.trackerId,r.section||'today');else if(r.route==='editor')renderEditorRoute(r.trackerId||null);else if(r.route==='reminderEditor')renderReminderEditorRoute(r.reminderId||null);else if(r.route==='taskEditor')renderTaskEditorRoute(r.taskId||null);}
+function renderMainRoute(view='todayView'){currentTrackerId=null;editingTrackerId=null;editingTaskId=null;showOnly(view);document.getElementById('bottomTabs').classList.remove('hidden');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.main===view));const titles={todayView:['ראשי','מה חשוב עכשיו'],trackersView:['מעקבים','תהליכים חוזרים והתקדמות'],tasksView:['משימות','דברים שצריך לסיים'],remindersView:['תזכורות','דברים שצריכים לקפוץ בזמן'],archiveView:['ארכיון','דברים שהושלמו או הועברו לארכיון'],appSettingsView:['הגדרות','מראה, התראות וגיבוי']};const [a,b]=titles[view]||titles.todayView;document.getElementById('appTitle').textContent=a;document.getElementById('appSubtitle').textContent=b;renderMain();}
+function applyRoute(r){if(!r||!r.app||r.route==='exit')return;renderedRoute=r;if(r.route==='main')renderMainRoute(r.view||'activeView');else if(r.route==='detail')renderTrackerRoute(r.trackerId,r.section||'today');else if(r.route==='editor')renderEditorRoute(r.trackerId||null);else if(r.route==='reminderEditor')renderReminderEditorRoute(r.reminderId||null);else if(r.route==='taskEditor')renderTaskEditorRoute(r.taskId||null);else if(r.route==='taskDetail')renderTaskDetailRoute(r.taskId);}
 function pushRoute(route){const depth=(history.state&&history.state.app?Number(history.state.depth||0):0)+1;const r={app:true,depth,...route};history.pushState(r,'');applyRoute(r);}
 function replaceRoute(route){const depth=(history.state&&history.state.app)?Number(history.state.depth||1):1;const r={app:true,depth,...route};history.replaceState(r,'');applyRoute(r);}
 function goHome(){replaceRoute({route:'main',view:'todayView'});}
@@ -337,7 +369,7 @@ function schedulePushSync(){if(!PUSH_API)return;clearTimeout(pushSyncTimer);push
 async function syncPushState(){
   if(!PUSH_API||Notification.permission!=='granted')return false;
   const sub=await getPushSubscription();if(!sub)return false;
-  const payload={deviceId:deviceId(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',subscription:sub.toJSON(),state:{version:state.version,trackers:state.trackers,reminders:state.reminders||[]}};
+  const payload={deviceId:deviceId(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',subscription:sub.toJSON(),state:{version:state.version,trackers:state.trackers,reminders:state.reminders||[],tasks:state.tasks||[]}};
   const r=await fetch(PUSH_API+'/state',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});return r.ok
 }
 async function renderNotificationStatus(){
@@ -367,11 +399,12 @@ async function notifyTest(){
   try{const reg=await navigator.serviceWorker?.ready;if(reg)await reg.showNotification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓',icon:'icon.svg',badge:'icon.svg'});else new Notification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓'});toast('נשלחה התראת בדיקה')}catch{new Notification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓'});}
 }
 // events
+document.getElementById('customRelativeSetBtn').onclick=setCustomRelativeReminder;document.getElementById('taskDetailBack').onclick=()=>history.back();document.getElementById('openToolsBtn').onclick=()=>document.getElementById('toolsMenu').classList.toggle('hidden');document.getElementById('toolsSettingsBtn').onclick=()=>{document.getElementById('toolsMenu').classList.add('hidden');pushRoute({route:'main',view:'appSettingsView'})};document.getElementById('toolsArchiveBtn').onclick=()=>{document.getElementById('toolsMenu').classList.add('hidden');pushRoute({route:'main',view:'archiveView'})};
 document.getElementById('newTrackerBtn').onclick=()=>openEditor();document.getElementById('newReminderBtn').onclick=()=>openReminderEditor();document.getElementById('newTaskBtn').onclick=()=>openTaskEditor();document.getElementById('backToTrackers').onclick=()=>replaceRoute({route:'main',view:'trackersView'});document.getElementById('cancelEditor').onclick=()=>history.back();document.getElementById('saveTrackerBtn').onclick=saveEditor;
 document.getElementById('trackerOpenEnded').onchange=e=>{window.editorDraft.openEnded=e.target.checked;document.getElementById('trackerDuration').disabled=e.target.checked;syncBasicDraft();renderBuilder()};
 document.getElementById('trackerMode').onchange=e=>{syncBasicDraft();const tr=window.editorDraft;if(e.target.value!==tr.mode){tr.mode=e.target.value;if(tr.mode==='simple'){const allTasks=tr.stages.flatMap(s=>s.tasks);tr.stages=[{id:uid('stage'),from:1,to:tr.openEnded?99999:(tr.duration||1),tasks:allTasks.length?allTasks:[newTask()]}]}else{tr.stages=[{id:uid('stage'),from:1,to:tr.openEnded?1:(tr.duration||1),tasks:tr.stages[0]?.tasks||[newTask()]}]}}renderBuilder()};
 document.getElementById('trackerDuration').oninput=()=>{syncBasicDraft();renderBuilder()};
-document.getElementById('cancelReminderEditor').onclick=()=>history.back();document.getElementById('saveReminderBtn').onclick=saveReminderEditor;document.getElementById('deleteReminderBtn').onclick=deleteCurrentReminder;document.getElementById('cancelTaskEditor').onclick=()=>history.back();document.getElementById('saveTaskBtn').onclick=saveTaskEditor;document.getElementById('deleteTaskBtn').onclick=deleteCurrentTask;document.getElementById('addSubtaskBtn').onclick=addSubtask;document.querySelectorAll('[data-relative-min]').forEach(b=>b.onclick=()=>setRelativeReminder(Number(b.dataset.relativeMin)));document.getElementById('openArchiveBtn').onclick=()=>pushRoute({route:'main',view:'archiveView'});document.getElementById('openSettingsBtn').onclick=()=>pushRoute({route:'main',view:'appSettingsView'});
+document.getElementById('cancelReminderEditor').onclick=()=>history.back();document.getElementById('saveReminderBtn').onclick=saveReminderEditor;document.getElementById('deleteReminderBtn').onclick=deleteCurrentReminder;document.getElementById('cancelTaskEditor').onclick=()=>history.back();document.getElementById('saveTaskBtn').onclick=saveTaskEditor;document.getElementById('deleteTaskBtn').onclick=deleteCurrentTask;document.getElementById('addSubtaskBtn').onclick=addSubtask;document.querySelectorAll('[data-relative-min]').forEach(b=>b.onclick=()=>setRelativeReminder(Number(b.dataset.relativeMin)));document.getElementById('openArchiveBtn')?.addEventListener('click',()=>pushRoute({route:'main',view:'archiveView'}));document.getElementById('openSettingsBtn')?.addEventListener('click',()=>pushRoute({route:'main',view:'appSettingsView'}));
 document.getElementById('historyModalClose').onclick=closeHistoryEditor;document.getElementById('historyModalDone').onclick=closeHistoryEditor;document.getElementById('historyModalBackdrop').onclick=e=>{if(e.target===document.getElementById('historyModalBackdrop'))closeHistoryEditor()};
 document.querySelectorAll('.detail-nav button').forEach(b=>b.onclick=()=>{const section=b.dataset.detail;if(section===detailSection)return;pushRoute({route:'detail',trackerId:currentTrackerId,section});});document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{const view=t.dataset.main;if(renderedRoute&&renderedRoute.route==='main'&&renderedRoute.view===view)return;replaceRoute({route:'main',view});});
 document.getElementById('permissionBtn').onclick=enableNotifications;document.getElementById('testNotifyBtn').onclick=notifyTest;
