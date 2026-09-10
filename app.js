@@ -370,17 +370,31 @@ function schedulePushSync(){if(!PUSH_API)return;clearTimeout(pushSyncTimer);push
 async function syncPushState(){
   if(!PUSH_API||Notification.permission!=='granted')return false;
   const sub=await getPushSubscription();if(!sub)return false;
-  const payload={deviceId:deviceId(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',subscription:sub.toJSON(),state:{version:state.version,trackers:state.trackers,reminders:state.reminders||[],tasks:state.tasks||[]}};
+  const id=deviceId();
+  try{
+    const pull=await fetch(PUSH_API+'/pull?deviceId='+encodeURIComponent(id),{cache:'no-store'});
+    if(pull.ok){
+      const remote=await pull.json();
+      if(remote?.state&&Number(remote.pendingActions||0)>0){
+        state.trackers=remote.state.trackers||[];
+        state.reminders=remote.state.reminders||[];
+        state.tasks=remote.state.tasks||[];
+        localStorage.setItem(APP_KEY,JSON.stringify(state));
+        renderMain();
+      }
+    }
+  }catch{}
+  const payload={deviceId:id,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',subscription:sub.toJSON(),state:{version:state.version,trackers:state.trackers,reminders:state.reminders||[],tasks:state.tasks||[]}};
   const r=await fetch(PUSH_API+'/state',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
   if(!r.ok)return false;
   try{
     const data=await r.json();
-    if(data?.state&&Number(data.appliedActions||0)>0){
+    if(data?.state){
       state.trackers=data.state.trackers||[];
       state.reminders=data.state.reminders||[];
       state.tasks=data.state.tasks||[];
       localStorage.setItem(APP_KEY,JSON.stringify(state));
-      renderMain();
+      if(Number(data.appliedActions||0)>0)renderMain();
     }
   }catch{}
   return true
