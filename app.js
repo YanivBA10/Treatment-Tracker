@@ -7,6 +7,7 @@ const DEVICE_KEY='personalTrackerDeviceId_v1';
 let pushSyncTimer=null;
 let state=loadState();
 let currentTrackerId=null, editingTrackerId=null, detailSection='today';
+let editingTaskId=null;
 let activeHistoryDay=null;
 let renderedRoute=null, isExiting=false;
 
@@ -37,9 +38,9 @@ function showConfirm({title,message,confirmText='אישור',danger=false,cancel
 
 function loadState(){
   const existing=JSON.parse(localStorage.getItem(APP_KEY)||'null');
-  if(existing){existing.version=5;existing.settings||={theme:'system'};if(!existing.settings.theme)existing.settings.theme='system';existing.trackers||=[];existing.reminders||=[];for(const tr of existing.trackers)for(const s of (tr.stages||[]))for(const t of (s.tasks||[]))if(t.description==null)t.description='';return existing;}
+  if(existing){existing.version=5;existing.settings||={theme:'system'};if(!existing.settings.theme)existing.settings.theme='system';existing.trackers||=[];existing.reminders||=[];existing.tasks||=[];for(const tr of existing.trackers)for(const s of (tr.stages||[]))for(const t of (s.tasks||[]))if(t.description==null)t.description='';return existing;}
   const old=JSON.parse(localStorage.getItem(OLD_KEY)||'null');
-  const base={version:5,trackers:[],reminders:[],settings:{theme:'system'}};
+  const base={version:5,trackers:[],reminders:[],tasks:[],settings:{theme:'system'}};
   if(old){base.trackers.push(migrateOld(old));localStorage.setItem(APP_KEY,JSON.stringify(base));}
   return base;
 }
@@ -72,17 +73,13 @@ function todayStats(tr){const d=trackerDay(tr),ts=tasksForDay(tr,d),done=ts.filt
 function trackerLabel(tr){const d=trackerDay(tr);if(d<1)return 'טרם התחיל';if(!tr.openEnded&&d>tr.duration)return 'הסתיים';return tr.openEnded?`יום ${d}`:`יום ${d} מתוך ${tr.duration}`}
 
 function renderMain(){
-  state.reminders||=[];
+  state.reminders||=[];state.tasks||=[];
   const act=document.getElementById('activeTrackers'),arc=document.getElementById('archivedTrackers'),rem=document.getElementById('activeReminders'),doneRem=document.getElementById('completedReminders');
-  act.innerHTML='';arc.innerHTML='';rem.innerHTML='';doneRem.innerHTML='';
-  const active=state.trackers.filter(t=>t.status==='active'), archived=state.trackers.filter(t=>t.status==='archived');
-  if(!active.length)act.innerHTML='<div class="empty">אין כרגע מעקבים פעילים.</div>'; else active.forEach(t=>act.appendChild(trackerCard(t)));
-  if(!archived.length)arc.innerHTML='<div class="empty">אין מעקבים בארכיון.</div>'; else archived.forEach(t=>arc.appendChild(trackerCard(t,true)));
-  const activeR=state.reminders.filter(r=>r.status!=='completed').sort((a,b)=>reminderSortKey(a).localeCompare(reminderSortKey(b)));
-  const completedR=state.reminders.filter(r=>r.status==='completed').sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
-  if(!activeR.length)rem.innerHTML='<div class="empty compact">אין כרגע תזכורות פעילות.</div>'; else activeR.forEach(r=>rem.appendChild(reminderCard(r,false)));
-  if(!completedR.length)doneRem.innerHTML='<div class="empty compact">אין תזכורות שהושלמו.</div>'; else completedR.forEach(r=>doneRem.appendChild(reminderCard(r,true)));
-  renderNotificationStatus();
+  if(act){act.innerHTML='';const active=state.trackers.filter(t=>t.status==='active');if(!active.length)act.innerHTML='<div class="empty">אין כרגע מעקבים פעילים.</div>';else active.forEach(t=>act.appendChild(trackerCard(t)));}
+  if(arc){arc.innerHTML='';const archived=state.trackers.filter(t=>t.status==='archived');if(!archived.length)arc.innerHTML='<div class="empty">אין מעקבים בארכיון.</div>';else archived.forEach(t=>arc.appendChild(trackerCard(t,true)));}
+  if(rem){rem.innerHTML='';const activeR=state.reminders.filter(r=>r.status!=='completed').sort((a,b)=>reminderSortKey(a).localeCompare(reminderSortKey(b)));if(!activeR.length)rem.innerHTML='<div class="empty compact">אין כרגע תזכורות פעילות.</div>';else activeR.forEach(r=>rem.appendChild(reminderCard(r,false)));}
+  if(doneRem){doneRem.innerHTML='';const completedR=state.reminders.filter(r=>r.status==='completed').sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));if(!completedR.length)doneRem.innerHTML='<div class="empty compact">אין תזכורות שהושלמו.</div>';else completedR.forEach(r=>doneRem.appendChild(reminderCard(r,true)));}
+  renderTasksList();renderTodayDashboard();renderNotificationStatus();
 }
 function trackerCard(tr,archived=false){const el=document.createElement('div');el.className='tracker';const st=todayStats(tr),all=totalStats(tr),completedToday=st.day>=1&&st.total>0&&st.done===st.total;let todayText=completedToday?'הושלם להיום ✓':(st.day>=1&&st.total?`${st.done}/${st.total} היום`:(st.day<1?'טרם התחיל':'אין פעולות היום'));
   el.innerHTML=`<div class="tracker-top"><div><div class="tracker-name">${esc(tr.name)}</div><div class="small">${trackerLabel(tr)} · ${todayText}</div></div><div class="badge ${completedToday?'ok':''}">${archived?'בארכיון':(completedToday?'✓ היום':all.pct+'%')}</div></div><div class="progress"><div style="width:${all.pct}%"></div></div>${archived?'<div class="actions"><button class="btn ghost smallbtn" data-restore>החזר לפעילים</button></div>':''}`;
@@ -106,6 +103,48 @@ function describeTracker(tr){if(tr.mode==='simple'){const s=tr.stages[0];return 
 function duplicateTracker(tr){const copy=JSON.parse(JSON.stringify(tr));copy.id=uid('tracker');copy.name=tr.name+' - עותק';copy.startDate=todayStr();copy.status='active';copy.done={};copy.createdAt=Date.now();copy.stages.forEach(s=>{s.id=uid('stage');s.tasks.forEach(t=>t.id=uid('task'))});state.trackers.push(copy);save();renderMain();toast('נוצר עותק חדש ללא היסטוריה');}
 
 
+
+function taskDueState(t){
+  if(t.status==='completed')return 'completed';
+  if(!t.dueDate)return 'open';
+  const today=todayStr();if(t.dueDate<today)return 'overdue';if(t.dueDate===today)return 'today';return 'future';
+}
+function taskProgress(t){const a=t.subtasks||[];return {done:a.filter(x=>x.done).length,total:a.length}}
+function taskCard(t,compact=false){
+  const el=document.createElement('div');const due=taskDueState(t),pr=taskProgress(t);el.className='work-task'+(t.status==='completed'?' completed':'')+(due==='overdue'?' overdue':'');
+  const meta=[];if(t.dueDate)meta.push(`${due==='overdue'?'באיחור · ':''}${fmtDate(parseDate(t.dueDate),true)}`);if(t.reminderDate&&t.reminderTime)meta.push(`🔔 ${fmtDate(parseDate(t.reminderDate),true)} ${t.reminderTime}`);if(pr.total)meta.push(`${pr.done}/${pr.total} שלבים`);
+  el.innerHTML=`<div class="reminder-main"><div class="grow"><div class="tracker-name">${esc(t.title)}</div>${!compact&&t.description?`<div class="reminder-description">${esc(t.description)}</div>`:''}${meta.length?`<div class="task-meta">${meta.join(' · ')}</div>`:''}</div><button class="check reminder-check" aria-label="סימון בוצע">${t.status==='completed'?'✓':''}</button></div>`;
+  el.querySelector('.reminder-check').onclick=e=>{e.stopPropagation();t.status=t.status==='completed'?'active':'completed';t.completedAt=t.status==='completed'?Date.now():null;save();renderMain();toast(t.status==='completed'?'המשימה הושלמה':'המשימה נפתחה מחדש')};
+  el.onclick=()=>openTaskEditor(t.id);return el;
+}
+function renderTasksList(){
+  const box=document.getElementById('tasksList'),done=document.getElementById('completedTasks');if(!box)return;box.innerHTML='';
+  const active=(state.tasks||[]).filter(t=>t.status!=='completed').sort((a,b)=>(a.dueDate||'9999-12-31').localeCompare(b.dueDate||'9999-12-31'));
+  if(!active.length)box.innerHTML='<div class="empty">אין משימות פתוחות.</div>';else active.forEach(t=>box.appendChild(taskCard(t)));
+  if(done){done.innerHTML='';const arr=(state.tasks||[]).filter(t=>t.status==='completed').sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));if(!arr.length)done.innerHTML='<div class="empty compact">אין משימות שהושלמו.</div>';else arr.slice(0,20).forEach(t=>done.appendChild(taskCard(t,true)));}
+}
+function renderTodayDashboard(){
+  const trackerBox=document.getElementById('todayTrackers'),taskBox=document.getElementById('todayTasks'),remBox=document.getElementById('todayReminders');if(!trackerBox)return;
+  trackerBox.innerHTML='';taskBox.innerHTML='';remBox.innerHTML='';
+  const trs=state.trackers.filter(t=>t.status==='active').filter(t=>{const st=todayStats(t);return st.day>=1&&st.total>0&&st.done<st.total});
+  if(!trs.length)trackerBox.innerHTML='<div class="empty compact">אין פעולות מעקב פתוחות להיום.</div>';else trs.forEach(t=>trackerBox.appendChild(trackerCard(t)));
+  const tasks=(state.tasks||[]).filter(t=>t.status!=='completed'&&['today','overdue'].includes(taskDueState(t)));
+  if(!tasks.length)taskBox.innerHTML='<div class="empty compact">אין משימות להיום.</div>';else tasks.forEach(t=>taskBox.appendChild(taskCard(t,true)));
+  const rs=(state.reminders||[]).filter(r=>r.status!=='completed'&&reminderDueToday(r)&&!reminderDoneToday(r));
+  if(!rs.length)remBox.innerHTML='<div class="empty compact">אין תזכורות פתוחות להיום.</div>';else rs.forEach(r=>remBox.appendChild(reminderCard(r,false)));
+}
+function openTaskEditor(id=null){pushRoute({route:'taskEditor',taskId:id||null})}
+function renderTaskEditorRoute(id=null){
+  showOnly('taskEditorView');document.getElementById('bottomTabs').classList.add('hidden');editingTaskId=id;
+  const found=id?(state.tasks||[]).find(t=>t.id===id):null;if(id&&!found){replaceRoute({route:'main',view:'tasksView'});return}
+  const t=found?JSON.parse(JSON.stringify(found)):{id:null,title:'',description:'',dueDate:'',reminderDate:'',reminderTime:'',status:'active',subtasks:[]};window.taskDraft=t;
+  document.getElementById('taskEditorTitle').textContent=id?'עריכת משימה':'משימה חדשה';document.getElementById('workTaskTitle').value=t.title||'';document.getElementById('workTaskDescription').value=t.description||'';document.getElementById('workTaskDueDate').value=t.dueDate||'';document.getElementById('workTaskReminderDate').value=t.reminderDate||'';document.getElementById('workTaskReminderTime').value=t.reminderTime||'';document.getElementById('deleteTaskBtn').classList.toggle('hidden',!id);renderSubtaskEditor();
+}
+function renderSubtaskEditor(){const host=document.getElementById('subtasksEditor');host.innerHTML='';(window.taskDraft.subtasks||[]).forEach((st,i)=>{const row=document.createElement('div');row.className='subtask-edit';row.innerHTML=`<input value="${esc(st.title||'')}" placeholder="שלב / תת-משימה"><button class="icon-btn" type="button">×</button>`;row.querySelector('input').oninput=e=>st.title=e.target.value;row.querySelector('button').onclick=()=>{window.taskDraft.subtasks.splice(i,1);renderSubtaskEditor()};host.appendChild(row)})}
+function addSubtask(){window.taskDraft.subtasks||=[];window.taskDraft.subtasks.push({id:uid('subtask'),title:'',done:false});renderSubtaskEditor()}
+function saveTaskEditor(){const t=window.taskDraft;t.title=document.getElementById('workTaskTitle').value.trim();t.description=document.getElementById('workTaskDescription').value.trim();t.dueDate=document.getElementById('workTaskDueDate').value||'';t.reminderDate=document.getElementById('workTaskReminderDate').value||'';t.reminderTime=document.getElementById('workTaskReminderTime').value||'';t.subtasks=(t.subtasks||[]).filter(x=>(x.title||'').trim()).map(x=>({...x,title:x.title.trim()}));if(!t.title){toast('צריך לתת שם למשימה.');return}state.tasks||=[];if(t.id){state.tasks[state.tasks.findIndex(x=>x.id===t.id)]=t}else{t.id=uid('worktask');t.createdAt=Date.now();state.tasks.push(t)}save();replaceRoute({route:'main',view:'tasksView'});toast('המשימה נשמרה')}
+async function deleteCurrentTask(){const t=window.taskDraft;if(!t?.id)return;const ok=await showConfirm({title:'למחוק את המשימה?',message:`"${t.title}" תימחק לצמיתות.`,confirmText:'מחק לצמיתות',danger:true});if(!ok)return;state.tasks=state.tasks.filter(x=>x.id!==t.id);save();replaceRoute({route:'main',view:'tasksView'});toast('המשימה נמחקה')}
+function setRelativeReminder(minutes){const d=new Date(Date.now()+minutes*60000);document.getElementById('reminderDate').value=localDateStr(d);document.getElementById('reminderTime').value=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;document.getElementById('reminderRepeat').value='once';toast(`נקבע לעוד ${minutes<60?minutes+' דקות':minutes===60?'שעה':minutes===120?'שעתיים':Math.round(minutes/60)+' שעות'}`)}
 function reminderSortKey(r){return `${r.date||'9999-12-31'}T${r.time||'23:59'}|${r.title||''}`}
 function reminderRepeatLabel(r){return r.repeat==='daily'?'כל יום':r.repeat==='weekly'?'כל שבוע':'חד־פעמית'}
 function reminderDueToday(r){
@@ -139,10 +178,10 @@ function saveReminderEditor(){
   const r=window.reminderDraft;r.title=document.getElementById('reminderTitle').value.trim();r.description=document.getElementById('reminderDescription').value.trim();r.date=document.getElementById('reminderDate').value||todayStr();r.time=document.getElementById('reminderTime').value||'20:00';r.repeat=document.getElementById('reminderRepeat').value;r.notify=document.getElementById('reminderNotify').checked;
   if(!r.title){toast('צריך לתת שם לתזכורת.');return}
   state.reminders||=[];if(r.id){const i=state.reminders.findIndex(x=>x.id===r.id);state.reminders[i]=r}else{r.id=uid('reminder');r.createdAt=Date.now();r.status='active';r.doneDates={};state.reminders.push(r)}
-  save();goHome();toast('התזכורת נשמרה');
+  save();replaceRoute({route:'main',view:'remindersView'});toast('התזכורת נשמרה');
 }
 async function deleteCurrentReminder(){
-  const r=window.reminderDraft;if(!r?.id)return;const ok=await showConfirm({title:'למחוק את התזכורת?',message:`"${r.title}" תימחק לצמיתות.`,confirmText:'מחק לצמיתות',danger:true});if(!ok)return;state.reminders=state.reminders.filter(x=>x.id!==r.id);save();goHome();toast('התזכורת נמחקה');
+  const r=window.reminderDraft;if(!r?.id)return;const ok=await showConfirm({title:'למחוק את התזכורת?',message:`"${r.title}" תימחק לצמיתות.`,confirmText:'מחק לצמיתות',danger:true});if(!ok)return;state.reminders=state.reminders.filter(x=>x.id!==r.id);save();replaceRoute({route:'main',view:'remindersView'});toast('התזכורת נמחקה');
 }
 function openEditor(id=null){pushRoute({route:'editor',trackerId:id||null});}
 function renderEditorRoute(id=null){
@@ -246,12 +285,12 @@ function saveEditor(){
   save();renderMain();goHome();toast('המעקב נשמר')
 }
 function showOnly(id){document.querySelectorAll('main').forEach(m=>m.classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
-function renderMainRoute(view='activeView'){currentTrackerId=null;editingTrackerId=null;showOnly(view);document.getElementById('bottomTabs').classList.remove('hidden');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.main===view));renderMain();}
-function applyRoute(r){if(!r||!r.app||r.route==='exit')return;renderedRoute=r;if(r.route==='main')renderMainRoute(r.view||'activeView');else if(r.route==='detail')renderTrackerRoute(r.trackerId,r.section||'today');else if(r.route==='editor')renderEditorRoute(r.trackerId||null);else if(r.route==='reminderEditor')renderReminderEditorRoute(r.reminderId||null);}
+function renderMainRoute(view='todayView'){currentTrackerId=null;editingTrackerId=null;editingTaskId=null;showOnly(view);document.getElementById('bottomTabs').classList.remove('hidden');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.main===view));const titles={todayView:['היום','מה דורש תשומת לב עכשיו'],trackersView:['מעקבים','תהליכים חוזרים והתקדמות'],tasksView:['משימות','דברים שצריך לסיים'],remindersView:['תזכורות','דברים שצריכים לקפוץ בזמן'],archiveView:['ארכיון','דברים שהושלמו או הועברו לארכיון'],appSettingsView:['הגדרות','מראה, התראות וגיבוי']};const [a,b]=titles[view]||titles.todayView;document.getElementById('appTitle').textContent=a;document.getElementById('appSubtitle').textContent=b;renderMain();}
+function applyRoute(r){if(!r||!r.app||r.route==='exit')return;renderedRoute=r;if(r.route==='main')renderMainRoute(r.view||'activeView');else if(r.route==='detail')renderTrackerRoute(r.trackerId,r.section||'today');else if(r.route==='editor')renderEditorRoute(r.trackerId||null);else if(r.route==='reminderEditor')renderReminderEditorRoute(r.reminderId||null);else if(r.route==='taskEditor')renderTaskEditorRoute(r.taskId||null);}
 function pushRoute(route){const depth=(history.state&&history.state.app?Number(history.state.depth||0):0)+1;const r={app:true,depth,...route};history.pushState(r,'');applyRoute(r);}
 function replaceRoute(route){const depth=(history.state&&history.state.app)?Number(history.state.depth||1):1;const r={app:true,depth,...route};history.replaceState(r,'');applyRoute(r);}
-function goHome(){replaceRoute({route:'main',view:'activeView'});}
-function setupNavigation(){if(!history.state||!history.state.app){history.replaceState({app:true,route:'exit',depth:0},'');history.pushState({app:true,route:'main',view:'activeView',depth:1},'');}else if(history.state.route==='exit'){history.pushState({app:true,route:'main',view:'activeView',depth:Number(history.state.depth||0)+1},'');}applyRoute(history.state);}
+function goHome(){replaceRoute({route:'main',view:'todayView'});}
+function setupNavigation(){if(!history.state||!history.state.app){history.replaceState({app:true,route:'exit',depth:0},'');history.pushState({app:true,route:'main',view:'todayView',depth:1},'');}else if(history.state.route==='exit'){history.pushState({app:true,route:'main',view:'todayView',depth:Number(history.state.depth||0)+1},'');}applyRoute(history.state);}
 let lastExitBackAt=0;
 window.addEventListener('popstate',e=>{
   if(isExiting)return;
@@ -281,7 +320,7 @@ async function importDataFile(file){
     if(!imported||!Array.isArray(imported.trackers))throw new Error('invalid');
     const ok=await showConfirm({title:'לייבא את הגיבוי?',message:'הייבוא יחליף את כל המעקבים והסימונים הקיימים במכשיר הזה.',confirmText:'ייבוא'});if(!ok)return;
     state=imported;state.settings||={theme:'system'};
-    state.version=5;state.settings||={theme:'system'};state.reminders||=[];
+    state.version=5;state.settings||={theme:'system'};state.reminders||=[];state.tasks||=[];
     save();currentTrackerId=null;editingTrackerId=null;renderMain();goHome();renderNotificationStatus();
     toast('הגיבוי יובא בהצלחה');
   }catch(e){toast('קובץ הגיבוי אינו תקין')}
@@ -328,13 +367,13 @@ async function notifyTest(){
   try{const reg=await navigator.serviceWorker?.ready;if(reg)await reg.showNotification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓',icon:'icon.svg',badge:'icon.svg'});else new Notification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓'});toast('נשלחה התראת בדיקה')}catch{new Notification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓'});}
 }
 // events
-document.getElementById('newTrackerBtn').onclick=()=>openEditor();document.getElementById('newReminderBtn').onclick=()=>openReminderEditor();document.getElementById('backToTrackers').onclick=()=>goHome();document.getElementById('cancelEditor').onclick=()=>history.back();document.getElementById('saveTrackerBtn').onclick=saveEditor;
+document.getElementById('newTrackerBtn').onclick=()=>openEditor();document.getElementById('newReminderBtn').onclick=()=>openReminderEditor();document.getElementById('newTaskBtn').onclick=()=>openTaskEditor();document.getElementById('backToTrackers').onclick=()=>replaceRoute({route:'main',view:'trackersView'});document.getElementById('cancelEditor').onclick=()=>history.back();document.getElementById('saveTrackerBtn').onclick=saveEditor;
 document.getElementById('trackerOpenEnded').onchange=e=>{window.editorDraft.openEnded=e.target.checked;document.getElementById('trackerDuration').disabled=e.target.checked;syncBasicDraft();renderBuilder()};
 document.getElementById('trackerMode').onchange=e=>{syncBasicDraft();const tr=window.editorDraft;if(e.target.value!==tr.mode){tr.mode=e.target.value;if(tr.mode==='simple'){const allTasks=tr.stages.flatMap(s=>s.tasks);tr.stages=[{id:uid('stage'),from:1,to:tr.openEnded?99999:(tr.duration||1),tasks:allTasks.length?allTasks:[newTask()]}]}else{tr.stages=[{id:uid('stage'),from:1,to:tr.openEnded?1:(tr.duration||1),tasks:tr.stages[0]?.tasks||[newTask()]}]}}renderBuilder()};
 document.getElementById('trackerDuration').oninput=()=>{syncBasicDraft();renderBuilder()};
-document.getElementById('cancelReminderEditor').onclick=()=>history.back();document.getElementById('saveReminderBtn').onclick=saveReminderEditor;document.getElementById('deleteReminderBtn').onclick=deleteCurrentReminder;
+document.getElementById('cancelReminderEditor').onclick=()=>history.back();document.getElementById('saveReminderBtn').onclick=saveReminderEditor;document.getElementById('deleteReminderBtn').onclick=deleteCurrentReminder;document.getElementById('cancelTaskEditor').onclick=()=>history.back();document.getElementById('saveTaskBtn').onclick=saveTaskEditor;document.getElementById('deleteTaskBtn').onclick=deleteCurrentTask;document.getElementById('addSubtaskBtn').onclick=addSubtask;document.querySelectorAll('[data-relative-min]').forEach(b=>b.onclick=()=>setRelativeReminder(Number(b.dataset.relativeMin)));document.getElementById('openArchiveBtn').onclick=()=>pushRoute({route:'main',view:'archiveView'});document.getElementById('openSettingsBtn').onclick=()=>pushRoute({route:'main',view:'appSettingsView'});
 document.getElementById('historyModalClose').onclick=closeHistoryEditor;document.getElementById('historyModalDone').onclick=closeHistoryEditor;document.getElementById('historyModalBackdrop').onclick=e=>{if(e.target===document.getElementById('historyModalBackdrop'))closeHistoryEditor()};
-document.querySelectorAll('.detail-nav button').forEach(b=>b.onclick=()=>{const section=b.dataset.detail;if(section===detailSection)return;pushRoute({route:'detail',trackerId:currentTrackerId,section});});document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{const view=t.dataset.main;if(renderedRoute&&renderedRoute.route==='main'&&renderedRoute.view===view)return;pushRoute({route:'main',view});});
+document.querySelectorAll('.detail-nav button').forEach(b=>b.onclick=()=>{const section=b.dataset.detail;if(section===detailSection)return;pushRoute({route:'detail',trackerId:currentTrackerId,section});});document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{const view=t.dataset.main;if(renderedRoute&&renderedRoute.route==='main'&&renderedRoute.view===view)return;replaceRoute({route:'main',view});});
 document.getElementById('permissionBtn').onclick=enableNotifications;document.getElementById('testNotifyBtn').onclick=notifyTest;
 document.getElementById('themeSelect').onchange=e=>{state.settings||={};state.settings.theme=e.target.value;save();applyTheme()};
 document.getElementById('exportDataBtn').onclick=exportData;document.getElementById('importDataBtn').onclick=()=>document.getElementById('importDataFile').click();document.getElementById('importDataFile').onchange=e=>{const f=e.target.files&&e.target.files[0];importDataFile(f);e.target.value=''};

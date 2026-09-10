@@ -62,6 +62,8 @@ html[data-theme="dark"] .status.miss{background:#3a2020}
 .task-description,.reminder-description{font-size:13px;color:var(--muted);line-height:1.45;margin-top:4px;white-space:pre-wrap}.optional{font-weight:500;color:var(--muted)}.quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.reminder-card{padding:14px 15px;border:1px solid var(--line);border-radius:18px;margin:10px 0;background:var(--surface);cursor:pointer}.reminder-card.completed{opacity:.78}.reminder-main{display:flex;align-items:center;gap:12px}.reminder-check{flex:0 0 auto}.empty.compact{padding:12px 6px}.subsection{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
 
 .completed-today{margin-top:12px;padding:10px 12px;border-radius:13px;background:color-mix(in srgb,var(--ok) 12%,var(--surface));color:var(--ok);font-weight:800}.history-hint{margin:6px 0 8px}.history-modal{max-height:min(78vh,680px);display:flex;flex-direction:column}.history-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.history-modal-head h3{margin-bottom:2px}.history-modal-close{border:0;background:transparent;color:var(--muted);font-size:27px;line-height:1;padding:2px 5px;cursor:pointer}.history-modal-tasks{overflow:auto;margin-top:14px;padding-inline-end:2px}.history-modal .modal-actions{flex:0 0 auto}.history-modal .task{margin-bottom:10px}
+
+.top-actions{display:flex;gap:8px;margin:-6px 0 14px}.top-actions .btn{padding:9px 12px;font-size:13px}.work-task{padding:14px 15px;border:1px solid var(--line);border-radius:18px;margin:10px 0;background:var(--surface);cursor:pointer}.work-task.overdue{border-color:color-mix(in srgb,#d65a5a 55%,var(--line))}.work-task.completed{opacity:.72}.today-group{margin-bottom:16px}.today-group:last-child{margin-bottom:0}.quick-time{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 14px}.quick-time button{padding:10px 6px;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:12px;font-weight:700}.subtask-edit{display:grid;grid-template-columns:1fr auto;gap:8px;margin:8px 0}.icon-btn{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:12px;width:44px;font-size:22px}.section-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}@media(max-width:480px){.quick-time{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -69,16 +71,32 @@ html[data-theme="dark"] .status.miss{background:#3a2020}
 <div class="app">
 <header><div><div class="title" id="appTitle">המעקבים שלי</div><div class="subtitle" id="appSubtitle">מעקבים ותזכורות במקום אחד</div></div><div class="appmark" aria-hidden="true">✓</div></header>
 
-<main id="activeView">
-  <div class="card"><div class="section-title">תזכורות</div><div id="activeReminders"></div><button class="btn secondary block" id="newReminderBtn">+ תזכורת חדשה</button></div>
+<main id="todayView">
+  <div class="top-actions"><button class="btn ghost" id="openSettingsBtn">⚙ הגדרות</button><button class="btn ghost" id="openArchiveBtn">▦ ארכיון</button></div>
+  <div class="card today-group"><div class="section-title">מעקבים להיום</div><div id="todayTrackers"></div></div>
+  <div class="card today-group"><div class="section-title">משימות להיום</div><div id="todayTasks"></div><button class="btn secondary block" id="newTaskQuickBtn" onclick="openTaskEditor()">+ משימה חדשה</button></div>
+  <div class="card today-group"><div class="section-title">תזכורות להיום</div><div id="todayReminders"></div><button class="btn secondary block" id="newReminderQuickBtn" onclick="openReminderEditor()">+ תזכורת חדשה</button></div>
+</main>
+
+<main id="trackersView" class="hidden">
   <div class="card"><div class="section-title">מעקבים פעילים</div><div id="activeTrackers"></div><button class="btn block" id="newTrackerBtn">+ מעקב חדש</button></div>
 </main>
 
+<main id="tasksView" class="hidden">
+  <div class="card"><div class="section-title">משימות פתוחות</div><div id="tasksList"></div><button class="btn block" id="newTaskBtn">+ משימה חדשה</button><div class="subsection"><div class="section-title">הושלמו</div><div id="completedTasks"></div></div></div>
+</main>
+
+<main id="remindersView" class="hidden">
+  <div class="card"><div class="section-title">תזכורות פעילות</div><div id="activeReminders"></div><button class="btn block" id="newReminderBtn">+ תזכורת חדשה</button><div class="subsection"><div class="section-title">הושלמו</div><div id="completedReminders"></div></div></div>
+</main>
+
 <main id="archiveView" class="hidden">
-  <div class="card"><div class="section-title">מעקבים בארכיון</div><div class="small">מעקבים שהעברת לארכיון נשמרים כאן עם כל ההיסטוריה שלהם.</div><div id="archivedTrackers"></div><div class="subsection"><div class="section-title">תזכורות שהושלמו</div><div class="small">תזכורות חד־פעמיות שסומנו כבוצעו נשמרות כאן.</div><div id="completedReminders"></div></div></div>
+  <span class="back" onclick="history.back()">← חזרה</span>
+  <div class="card"><div class="section-title">מעקבים בארכיון</div><div class="small">מעקבים שהעברת לארכיון נשמרים כאן עם כל ההיסטוריה שלהם.</div><div id="archivedTrackers"></div></div>
 </main>
 
 <main id="appSettingsView" class="hidden">
+  <span class="back" onclick="history.back()">← חזרה</span>
   <div class="card"><div class="section-title">מראה</div><div class="theme-row"><label for="themeSelect">ערכת תצוגה</label><select id="themeSelect"><option value="system">לפי המכשיר</option><option value="light">בהיר</option><option value="dark">כהה</option></select></div><div class="setting-note">ברירת המחדל היא לפי הגדרת התצוגה של Android.</div></div>
   <div class="card"><div class="section-title">התראות</div><div id="notificationStatus" class="summary"></div><div class="actions"><button class="btn secondary" id="permissionBtn">אפשר התראות</button><button class="btn ghost" id="testNotifyBtn">שלח התראת בדיקה</button></div><div id="pushStatusNote" class="setting-note"></div></div>
   <div class="card"><div class="section-title">נתונים וגיבוי</div><div class="small">כל הנתונים נשמרים מקומית במכשיר הזה. מומלץ לייצא גיבוי מדי פעם, במיוחד לפני החלפת מכשיר.</div><div class="actions"><button class="btn secondary" id="exportDataBtn">ייצוא גיבוי</button><button class="btn ghost" id="importDataBtn">ייבוא גיבוי</button><input id="importDataFile" type="file" accept="application/json,.json" class="hidden"></div><div class="setting-note">ייבוא גיבוי מחליף את הנתונים הקיימים באפליקציה במכשיר הזה בלבד.</div></div>
@@ -108,11 +126,22 @@ html[data-theme="dark"] .status.miss{background:#3a2020}
   <div class="card"><div class="section-title" id="reminderEditorTitle">תזכורת חדשה</div>
     <label>מה להזכיר?</label><input id="reminderTitle" placeholder="לדוגמה: לשלוח הודעה לדני" />
     <label>תיאור / הערה <span class="optional">(אופציונלי)</span></label><textarea id="reminderDescription" rows="3" placeholder="פרטים שיעזרו לי כשאקבל את התזכורת"></textarea>
-    <div class="field-grid"><div><label>תאריך / תאריך התחלה</label><input type="date" id="reminderDate" /></div><div><label>שעה</label><input type="time" id="reminderTime" /></div></div>
+    <label>קיצור דרך</label><div class="quick-time"><button type="button" data-relative-min="15">עוד 15 דק׳</button><button type="button" data-relative-min="30">עוד 30 דק׳</button><button type="button" data-relative-min="60">עוד שעה</button><button type="button" data-relative-min="120">עוד שעתיים</button></div><div class="field-grid"><div><label>תאריך / תאריך התחלה</label><input type="date" id="reminderDate" /></div><div><label>שעה</label><input type="time" id="reminderTime" /></div></div>
     <label>חזרה</label><select id="reminderRepeat"><option value="once">חד־פעמית</option><option value="daily">כל יום</option><option value="weekly">כל שבוע</option></select>
     <div class="switchline"><input type="checkbox" id="reminderNotify" checked/><label for="reminderNotify" style="margin:0">שלח התראה</label></div>
     <button class="btn block" id="saveReminderBtn">שמור תזכורת</button>
     <button class="btn danger block hidden" id="deleteReminderBtn">מחק תזכורת</button>
+  </div>
+</main>
+<main id="taskEditorView" class="hidden">
+  <span class="back" id="cancelTaskEditor">← ביטול</span>
+  <div class="card"><div class="section-title" id="taskEditorTitle">משימה חדשה</div>
+    <label>שם המשימה</label><input id="workTaskTitle" placeholder="לדוגמה: להגיש את מסמכי המכרז" />
+    <label>תיאור / הערה <span class="optional">(אופציונלי)</span></label><textarea id="workTaskDescription" rows="3" placeholder="פרטים שכדאי לזכור"></textarea>
+    <label>תתי-משימות / שלבים <span class="optional">(אופציונלי)</span></label><div id="subtasksEditor"></div><button class="btn secondary block" type="button" id="addSubtaskBtn">+ הוסף שלב</button>
+    <div class="field-grid"><div><label>תאריך יעד <span class="optional">(אופציונלי)</span></label><input type="date" id="workTaskDueDate"></div><div><label>תזכורת בתאריך</label><input type="date" id="workTaskReminderDate"></div></div>
+    <label>שעת תזכורת <span class="optional">(אופציונלי)</span></label><input type="time" id="workTaskReminderTime">
+    <button class="btn block" id="saveTaskBtn">שמור משימה</button><button class="btn danger block hidden" id="deleteTaskBtn">מחק משימה</button>
   </div>
 </main>
 </div>
@@ -136,7 +165,7 @@ html[data-theme="dark"] .status.miss{background:#3a2020}
   </div>
 </div>
 
-<nav class="tabs" id="bottomTabs"><div class="tabs-inner"><div class="tab active" data-main="activeView"><span>✓</span>פעילים</div><div class="tab" data-main="archiveView"><span>▦</span>ארכיון</div><div class="tab" data-main="appSettingsView"><span>⚙</span>הגדרות</div></div></nav>
+<nav class="tabs" id="bottomTabs"><div class="tabs-inner"><div class="tab active" data-main="todayView"><span>⌂</span>היום</div><div class="tab" data-main="trackersView"><span>✓</span>מעקבים</div><div class="tab" data-main="tasksView"><span>☑</span>משימות</div><div class="tab" data-main="remindersView"><span>🔔</span>תזכורות</div></div></nav>
 
 <script src="app.js"></script>
 </body></html>
