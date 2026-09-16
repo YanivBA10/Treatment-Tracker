@@ -4,7 +4,7 @@ const OLD_KEY='treatmentTracker_v1';
 const DAY_MS=86400000;
 const PUSH_API=(window.PERSONAL_TRACKER_PUSH_API||'').replace(/\/$/,'');
 const DEVICE_KEY='personalTrackerDeviceId_v1';
-const CLIENT_VERSION='5.5';
+const CLIENT_VERSION='5.5.1';
 const ACTION_DB='personal-tracker-actions-v2',ACTION_STORE='actions';
 const LAST_ACTION_KEY='personalTrackerLastNotificationAction_v1';
 let pushSyncTimer=null;
@@ -115,7 +115,7 @@ function taskDueState(t){
 function taskProgress(t){const a=t.subtasks||[];return {done:a.filter(x=>x.done).length,total:a.length}}
 function taskCard(t,compact=false){
   const el=document.createElement('div');const due=taskDueState(t),pr=taskProgress(t);el.className='work-task'+(t.status==='completed'?' completed':'')+(due==='overdue'?' overdue':'');
-  const meta=[];if(t.dueDate)meta.push(`${due==='overdue'?'באיחור · ':''}${fmtDate(parseDate(t.dueDate),true)}`);if(t.reminderDate&&t.reminderTime)meta.push(`🔔 ${fmtDate(parseDate(t.reminderDate),true)} ${t.reminderTime}`);if(pr.total)meta.push(`${pr.done}/${pr.total} שלבים`);if(t.showOnMain&&t.status!=='completed')meta.push('מוצג בראשי');
+  const meta=[];if(t.dueDate)meta.push(`${due==='overdue'?'באיחור · ':''}${fmtDate(parseDate(t.dueDate),true)}`);if(t.reminderDate&&t.reminderTime)meta.push(`🔔 ${fmtDate(parseDate(t.reminderDate),true)} ${t.reminderTime}`);const snz=snoozeLabel(t.snoozedUntil);if(snz)meta.push(snz);if(pr.total)meta.push(`${pr.done}/${pr.total} שלבים`);if(t.showOnMain&&t.status!=='completed')meta.push('מוצג בראשי');
   el.innerHTML=`<div class="reminder-main"><div class="grow"><div class="tracker-name">${esc(t.title)}</div>${!compact&&t.description?`<div class="reminder-description">${esc(t.description)}</div>`:''}${meta.length?`<div class="task-meta">${meta.join(' · ')}</div>`:''}</div><button class="check reminder-check" aria-label="סימון בוצע">${t.status==='completed'?'✓':''}</button></div>`;
   el.querySelector('.reminder-check').onclick=e=>{e.stopPropagation();setWholeTaskDone(t,t.status!=='completed')};
   el.onclick=()=>openTaskDetail(t.id);return el;
@@ -191,10 +191,18 @@ function reminderDueToday(r){
   return false;
 }
 function reminderDoneToday(r){return !!(r.doneDates&&r.doneDates[todayStr()])}
+function snoozeLabel(ts){
+  const n=Number(ts||0);if(!n||n<=Date.now())return '';
+  const d=new Date(n),today=new Date();
+  const same=d.getFullYear()===today.getFullYear()&&d.getMonth()===today.getMonth()&&d.getDate()===today.getDate();
+  const time=d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit',hour12:false});
+  return same?`נדחתה עד ${time}`:`נדחתה עד ${d.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'})} ${time}`;
+}
 function reminderCard(r,completed=false){
   const el=document.createElement('div');el.className='reminder-card'+(completed?' completed':'');const due=reminderDueToday(r),doneToday=reminderDoneToday(r);
   const when=r.repeat==='once'?`${fmtDate(parseDate(r.date),true)} · ${r.time}`:`${reminderRepeatLabel(r)} · ${r.time}`;
-  el.innerHTML=`<div class="reminder-main"><div class="grow"><div class="tracker-name">${esc(r.title)}</div>${r.description?`<div class="reminder-description">${esc(r.description)}</div>`:''}<div class="task-meta">${when}${r.notify?' · 🔔':''}</div></div>${completed?'<span class="badge ok">הושלם</span>':`<button class="check reminder-check" aria-label="סימון בוצע">${doneToday?'✓':''}</button>`}</div>`;
+  const snz=snoozeLabel(r.snoozedUntil);
+  el.innerHTML=`<div class="reminder-main"><div class="grow"><div class="tracker-name">${esc(r.title)}</div>${r.description?`<div class="reminder-description">${esc(r.description)}</div>`:''}<div class="task-meta">${when}${r.notify?' · 🔔':''}${snz?` · <strong>${esc(snz)}</strong>`:''}</div></div>${completed?'<span class="badge ok">הושלם</span>':`<button class="check reminder-check" aria-label="סימון בוצע">${doneToday?'✓':''}</button>`}</div>`;
   if(!completed)el.querySelector('.reminder-check').onclick=e=>{e.stopPropagation();completeReminder(r)};
   el.onclick=()=>openReminderEditor(r.id);return el;
 }
@@ -392,12 +400,14 @@ function applyNotificationActionLocally(a){
       else{const k=a.dateKey||todayStr();r.doneDates||={};r.doneDates[k]=true;r.skippedDates||={};r.skippedDates[k]=true}
       return true;
     }
+    if(a.action==='snooze'){r.snoozedUntil=Number(a.snoozedUntil)||((Number(a.at)||Date.now())+3600000);return true;}
     return false;
   }
   if(a.kind==='task'){
     const t=state.tasks.find(x=>x.id===a.taskId);if(!t)return false;
     if(a.action==='done'){t.status='completed';t.completedAt=a.at||Date.now();for(const st of (t.subtasks||[]))st.done=true;return true}
     if(a.action==='cancel'){t.reminderDate='';t.reminderTime='';return true}
+    if(a.action==='snooze'){t.snoozedUntil=Number(a.snoozedUntil)||((Number(a.at)||Date.now())+3600000);return true}
     return false;
   }
   if(a.kind==='tracker'&&a.action==='done'){
@@ -453,7 +463,7 @@ async function runPushDiagnostics(){
     if(!r.ok){box.textContent='המכשיר לא רשום כרגע בשרת התזכורות.';return}
     const d=await r.json(),last=(d.dispatchLog||[]).slice(-1)[0],localAction=JSON.parse(localStorage.getItem(LAST_ACTION_KEY)||'null');
     const parts=[`רישום שרת: ${d.subscriptionActive?'תקין ✓':'לא תקין'}`,`עדכון שרת אחרון: ${d.updatedAt?new Date(d.updatedAt).toLocaleString('he-IL'):'לא ידוע'}`,`דחיות בתור: ${Number(d.snoozes||0)}`,`פעולות ממתינות: ${Number(d.pendingActions||0)}`];
-    if(last)parts.push(`אירוע שרת אחרון: ${last.action?last.action+' · ':''}${last.status||''} · ${new Date(last.workerAt).toLocaleString('he-IL')}`);
+    if(last)parts.push(`אירוע שרת אחרון: ${last.action?last.action+' · ':''}${last.status||''}${last.rawAction&&last.rawAction!==last.action?` · raw:${last.rawAction}`:''} · ${new Date(last.workerAt).toLocaleString('he-IL')}`);
     if(localAction)parts.push(`פעולה אחרונה במכשיר: ${localAction.action} · ${new Date(localAction.at).toLocaleString('he-IL')}`);
     box.textContent=parts.join('\n');box.style.whiteSpace='pre-line';
   }catch(e){box.textContent='בדיקת החיבור נכשלה. ייתכן ששירות הרקע אינו זמין כרגע.'}

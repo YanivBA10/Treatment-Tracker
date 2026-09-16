@@ -1,4 +1,4 @@
-const CACHE='personal-tracker-v5.5';
+const CACHE='personal-tracker-v5.5.1';
 const ASSETS=['./','./index.html','./config.js','./app.js','./manifest.json','./icon.svg'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
@@ -34,10 +34,21 @@ async function notifyOpenClients(payload){
   for(const c of list){try{c.postMessage({type:'notification-action-local',payload})}catch{}}
 }
 self.addEventListener('notificationclick',e=>{
-  const d=e.notification.data||{},action=e.action;e.notification.close();
+  const d=e.notification.data||{},rawAction=e.action;
+  let action=rawAction;
+  // On the target Android/RTL notification UI, Chrome has been observed to return
+  // the opposite action id for the two visible buttons. Normalize only notifications
+  // explicitly marked by the Worker so the mapping remains scoped and testable.
+  if(d.actionMapping==='swap-done-snooze-v1'){
+    if(rawAction==='done')action='snooze';
+    else if(rawAction==='snooze')action='done';
+  }
+  e.notification.close();
   if(action&&d.actionUrl&&d.deviceId){
     e.waitUntil((async()=>{
-      const payload={deviceId:d.deviceId,action,kind:d.kind,dateKey:d.dateKey,trackerDay:d.trackerDay,trackerId:d.trackerId,itemId:d.itemId,reminderId:d.reminderId,taskId:d.taskId,at:Date.now()};
+      const now=Date.now();
+      const payload={deviceId:d.deviceId,action,rawAction,kind:d.kind,dateKey:d.dateKey,trackerDay:d.trackerDay,trackerId:d.trackerId,itemId:d.itemId,reminderId:d.reminderId,taskId:d.taskId,at:now};
+      if(action==='snooze')payload.snoozedUntil=now+3600000;
       try{await persistLocalAction(payload)}catch{}
       try{await notifyOpenClients(payload)}catch{}
       try{
