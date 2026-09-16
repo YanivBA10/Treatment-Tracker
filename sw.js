@@ -1,4 +1,4 @@
-const CACHE='personal-tracker-v5.4.1';
+const CACHE='personal-tracker-v5.5';
 const ASSETS=['./','./index.html','./config.js','./app.js','./manifest.json','./icon.svg'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
@@ -15,12 +15,32 @@ async function focusOrOpen(url){
   for(const c of list){if('focus'in c){try{await c.navigate?.(url)}catch{}return c.focus()}}
   return clients.openWindow?clients.openWindow(url):undefined;
 }
+const ACTION_DB='personal-tracker-actions-v2',ACTION_STORE='actions';
+function openActionDb(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(ACTION_DB,1);
+    req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(ACTION_STORE))db.createObjectStore(ACTION_STORE,{keyPath:'id'})};
+    req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+  });
+}
+async function persistLocalAction(payload){
+  const db=await openActionDb();
+  const record={id:`act_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,createdAt:Date.now(),payload};
+  await new Promise((resolve,reject)=>{const tx=db.transaction(ACTION_STORE,'readwrite');tx.objectStore(ACTION_STORE).put(record);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
+  db.close();return record;
+}
+async function notifyOpenClients(payload){
+  const list=await clients.matchAll({type:'window',includeUncontrolled:true});
+  for(const c of list){try{c.postMessage({type:'notification-action-local',payload})}catch{}}
+}
 self.addEventListener('notificationclick',e=>{
   const d=e.notification.data||{},action=e.action;e.notification.close();
   if(action&&d.actionUrl&&d.deviceId){
     e.waitUntil((async()=>{
+      const payload={deviceId:d.deviceId,action,kind:d.kind,dateKey:d.dateKey,trackerDay:d.trackerDay,trackerId:d.trackerId,itemId:d.itemId,reminderId:d.reminderId,taskId:d.taskId,at:Date.now()};
+      try{await persistLocalAction(payload)}catch{}
+      try{await notifyOpenClients(payload)}catch{}
       try{
-        const payload={deviceId:d.deviceId,action,kind:d.kind,dateKey:d.dateKey,trackerDay:d.trackerDay,trackerId:d.trackerId,itemId:d.itemId,reminderId:d.reminderId,taskId:d.taskId};
         const r=await fetch(d.actionUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw new Error('action failed');
       }catch{await focusOrOpen(d.url||'./')}
     })());return;

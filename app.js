@@ -4,6 +4,9 @@ const OLD_KEY='treatmentTracker_v1';
 const DAY_MS=86400000;
 const PUSH_API=(window.PERSONAL_TRACKER_PUSH_API||'').replace(/\/$/,'');
 const DEVICE_KEY='personalTrackerDeviceId_v1';
+const CLIENT_VERSION='5.5';
+const ACTION_DB='personal-tracker-actions-v2',ACTION_STORE='actions';
+const LAST_ACTION_KEY='personalTrackerLastNotificationAction_v1';
 let pushSyncTimer=null;
 let state=loadState();
 let currentTrackerId=null, editingTrackerId=null, detailSection='today';
@@ -366,35 +369,65 @@ async function getPushSubscription(){
   const cfg=await fetch(PUSH_API+'/config').then(r=>{if(!r.ok)throw new Error('config');return r.json()});
   sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(cfg.publicKey)});return sub;
 }
-function schedulePushSync(){if(!PUSH_API)return;clearTimeout(pushSyncTimer);pushSyncTimer=setTimeout(()=>syncPushState().catch(()=>{}),700)}
-async function syncPushState(){
+function schedulePushSync(){if(!PUSH_API)return;clearTimeout(pushSyncTimer);pushSyncTimer=setTimeout(()=>syncPushState({reason:'local-save'}).catch(()=>{}),900)}
+function openLocalActionDb(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(ACTION_DB,1);
+    req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(ACTION_STORE))db.createObjectStore(ACTION_STORE,{keyPath:'id'})};
+    req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+  });
+}
+function applyNotificationActionLocally(a){
+  if(!a||!a.action)return false;state.trackers||=[];state.reminders||=[];state.tasks||=[];
+  localStorage.setItem(LAST_ACTION_KEY,JSON.stringify({action:a.action,kind:a.kind,at:a.at||Date.now()}));
+  if(a.kind==='reminder'){
+    const r=state.reminders.find(x=>x.id===a.reminderId);if(!r)return false;
+    if(a.action==='done'){
+      if((r.repeat||'once')==='once'){r.status='completed';r.completedAt=a.at||Date.now();r.completionReason='done'}
+      else{r.doneDates||={};r.doneDates[a.dateKey||todayStr()]=true}
+      return true;
+    }
+    if(a.action==='cancel'){
+      if((r.repeat||'once')==='once'){r.status='completed';r.completedAt=a.at||Date.now();r.completionReason='cancelled'}
+      else{const k=a.dateKey||todayStr();r.doneDates||={};r.doneDates[k]=true;r.skippedDates||={};r.skippedDates[k]=true}
+      return true;
+    }
+    return false;
+  }
+  if(a.kind==='task'){
+    const t=state.tasks.find(x=>x.id===a.taskId);if(!t)return false;
+    if(a.action==='done'){t.status='completed';t.completedAt=a.at||Date.now();for(const st of (t.subtasks||[]))st.done=true;return true}
+    if(a.action==='cancel'){t.reminderDate='';t.reminderTime='';return true}
+    return false;
+  }
+  if(a.kind==='tracker'&&a.action==='done'){
+    const tr=state.trackers.find(x=>x.id===a.trackerId);if(!tr)return false;const d=Number(a.trackerDay||trackerDay(tr));
+    tr.done||={};tr.done[`day_${d}`]||={};tr.done[`day_${d}`][a.itemId]=true;return true;
+  }
+  return false;
+}
+async function drainLocalNotificationActions(){
+  if(!('indexedDB'in window))return 0;let db;try{db=await openLocalActionDb()}catch{return 0}
+  let records=[];try{records=await new Promise((resolve,reject)=>{const tx=db.transaction(ACTION_STORE,'readonly'),req=tx.objectStore(ACTION_STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}catch{db.close();return 0}
+  if(!records.length){db.close();return 0}
+  let changed=0;for(const rec of records){if(applyNotificationActionLocally(rec.payload))changed++}
+  try{await new Promise((resolve,reject)=>{const tx=db.transaction(ACTION_STORE,'readwrite'),store=tx.objectStore(ACTION_STORE);for(const rec of records)store.delete(rec.id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}catch{}
+  db.close();if(changed){localStorage.setItem(APP_KEY,JSON.stringify(state));renderMain()}return changed;
+}
+async function syncPushState({reason='manual'}={}){
   if(!PUSH_API||Notification.permission!=='granted')return false;
   const sub=await getPushSubscription();if(!sub)return false;
-  const id=deviceId();
-  try{
-    const pull=await fetch(PUSH_API+'/pull?deviceId='+encodeURIComponent(id),{cache:'no-store'});
-    if(pull.ok){
-      const remote=await pull.json();
-      if(remote?.state&&Number(remote.pendingActions||0)>0){
-        state.trackers=remote.state.trackers||[];
-        state.reminders=remote.state.reminders||[];
-        state.tasks=remote.state.tasks||[];
-        localStorage.setItem(APP_KEY,JSON.stringify(state));
-        renderMain();
-      }
-    }
-  }catch{}
-  const payload={deviceId:id,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',subscription:sub.toJSON(),state:{version:state.version,trackers:state.trackers,reminders:state.reminders||[],tasks:state.tasks||[]}};
+  const payload={deviceId:deviceId(),clientVersion:CLIENT_VERSION,reason,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',subscription:sub.toJSON(),state:{version:state.version,trackers:state.trackers,reminders:state.reminders||[],tasks:state.tasks||[]}};
   const r=await fetch(PUSH_API+'/state',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
   if(!r.ok)return false;
   try{
     const data=await r.json();
-    if(data?.state){
+    if(data?.state&&Number(data.appliedActions||0)>0){
       state.trackers=data.state.trackers||[];
       state.reminders=data.state.reminders||[];
       state.tasks=data.state.tasks||[];
       localStorage.setItem(APP_KEY,JSON.stringify(state));
-      if(Number(data.appliedActions||0)>0)renderMain();
+      renderMain();
     }
   }catch{}
   return true
@@ -410,10 +443,25 @@ async function renderNotificationStatus(){
     catch{e.textContent='התראות פעילות ✓';note.textContent='הרשאת ההתראות תקינה, אבל שירות תזכורות הרקע אינו זמין כרגע.'}
   }else{e.textContent='התראות פעילות ✓';note.textContent='הרשאת ההתראות תקינה. שירות תזכורות הרקע עדיין לא הוגדר בגרסה הזו.'}
 }
+async function runPushDiagnostics(){
+  const box=document.getElementById('diagnosticsBox');if(!box)return;
+  box.classList.remove('hidden');box.textContent='בודק חיבור...';
+  try{
+    const sub=await getPushSubscription();
+    if(!sub){box.textContent='אין Push subscription פעיל במכשיר.';return}
+    const r=await fetch(PUSH_API+'/diagnostics',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId()})});
+    if(!r.ok){box.textContent='המכשיר לא רשום כרגע בשרת התזכורות.';return}
+    const d=await r.json(),last=(d.dispatchLog||[]).slice(-1)[0],localAction=JSON.parse(localStorage.getItem(LAST_ACTION_KEY)||'null');
+    const parts=[`רישום שרת: ${d.subscriptionActive?'תקין ✓':'לא תקין'}`,`עדכון שרת אחרון: ${d.updatedAt?new Date(d.updatedAt).toLocaleString('he-IL'):'לא ידוע'}`,`דחיות בתור: ${Number(d.snoozes||0)}`,`פעולות ממתינות: ${Number(d.pendingActions||0)}`];
+    if(last)parts.push(`אירוע שרת אחרון: ${last.action?last.action+' · ':''}${last.status||''} · ${new Date(last.workerAt).toLocaleString('he-IL')}`);
+    if(localAction)parts.push(`פעולה אחרונה במכשיר: ${localAction.action} · ${new Date(localAction.at).toLocaleString('he-IL')}`);
+    box.textContent=parts.join('\n');box.style.whiteSpace='pre-line';
+  }catch(e){box.textContent='בדיקת החיבור נכשלה. ייתכן ששירות הרקע אינו זמין כרגע.'}
+}
 async function enableNotifications(){
   if(!('Notification'in window))return;
   const p=await Notification.requestPermission();if(p==='granted'){
-    if(PUSH_API){try{await getPushSubscription();await syncPushState();toast('התראות הרקע הופעלו')}catch{toast('ההרשאה ניתנה, אך חיבור הרקע נכשל')}}
+    if(PUSH_API){try{await getPushSubscription();await syncPushState({reason:'enable-notifications'});toast('התראות הרקע הופעלו')}catch{toast('ההרשאה ניתנה, אך חיבור הרקע נכשל')}}
     else toast('התראות הופעלו');
   }renderNotificationStatus()
 }
@@ -421,7 +469,7 @@ async function notifyTest(){
   if(!('Notification'in window)){toast('אין תמיכה בהתראות');return}
   if(Notification.permission!=='granted'){toast('צריך קודם לאפשר התראות');return}
   if(PUSH_API){
-    try{await syncPushState();const r=await fetch(PUSH_API+'/test',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId()})});if(r.ok){toast('נשלחה התראת בדיקה דרך הרקע');return}}catch{}
+    try{await syncPushState({reason:'test-notification'});const r=await fetch(PUSH_API+'/test',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId()})});if(r.ok){toast('נשלחה התראת בדיקה דרך הרקע');return}}catch{}
   }
   try{const reg=await navigator.serviceWorker?.ready;if(reg)await reg.showNotification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓',icon:'icon.svg',badge:'icon.svg'});else new Notification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓'});toast('נשלחה התראת בדיקה')}catch{new Notification('המעקבים שלי',{body:'התראת הבדיקה פועלת ✓'});}
 }
@@ -434,7 +482,7 @@ document.getElementById('trackerDuration').oninput=()=>{syncBasicDraft();renderB
 document.getElementById('cancelReminderEditor').onclick=()=>history.back();document.getElementById('saveReminderBtn').onclick=saveReminderEditor;document.getElementById('deleteReminderBtn').onclick=deleteCurrentReminder;document.getElementById('cancelTaskEditor').onclick=()=>history.back();document.getElementById('saveTaskBtn').onclick=saveTaskEditor;document.getElementById('deleteTaskBtn').onclick=deleteCurrentTask;document.getElementById('addSubtaskBtn').onclick=addSubtask;document.querySelectorAll('[data-relative-min]').forEach(b=>b.onclick=()=>setRelativeReminder(Number(b.dataset.relativeMin)));document.getElementById('openArchiveBtn')?.addEventListener('click',()=>pushRoute({route:'main',view:'archiveView'}));document.getElementById('openSettingsBtn')?.addEventListener('click',()=>pushRoute({route:'main',view:'appSettingsView'}));
 document.getElementById('historyModalClose').onclick=closeHistoryEditor;document.getElementById('historyModalDone').onclick=closeHistoryEditor;document.getElementById('historyModalBackdrop').onclick=e=>{if(e.target===document.getElementById('historyModalBackdrop'))closeHistoryEditor()};
 document.querySelectorAll('.detail-nav button').forEach(b=>b.onclick=()=>{const section=b.dataset.detail;if(section===detailSection)return;pushRoute({route:'detail',trackerId:currentTrackerId,section});});document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{const view=t.dataset.main;if(renderedRoute&&renderedRoute.route==='main'&&renderedRoute.view===view)return;replaceRoute({route:'main',view});});
-document.getElementById('permissionBtn').onclick=enableNotifications;document.getElementById('testNotifyBtn').onclick=notifyTest;
+document.getElementById('permissionBtn').onclick=enableNotifications;document.getElementById('testNotifyBtn').onclick=notifyTest;document.getElementById('diagnosticsBtn').onclick=runPushDiagnostics;
 document.getElementById('themeSelect').onchange=e=>{state.settings||={};state.settings.theme=e.target.value;save();applyTheme()};
 document.getElementById('exportDataBtn').onclick=exportData;document.getElementById('importDataBtn').onclick=()=>document.getElementById('importDataFile').click();document.getElementById('importDataFile').onchange=e=>{const f=e.target.files&&e.target.files[0];importDataFile(f);e.target.value=''};
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').then(()=>navigator.serviceWorker.ready));
@@ -446,5 +494,6 @@ function handleLaunchLink(){
   else if(rem&&(state.reminders||[]).some(x=>x.id===rem))openReminderEditor(rem);
   if(tracker||rem||task)history.replaceState(history.state,'',location.pathname);
 }
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncPushState().catch(()=>{})});
-applyTheme();setupNavigation();handleLaunchLink();setTimeout(()=>{renderNotificationStatus();syncPushState().catch(()=>{})},1200);
+if('serviceWorker'in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data?.type==='notification-action-local'){if(applyNotificationActionLocally(e.data.payload)){localStorage.setItem(APP_KEY,JSON.stringify(state));renderMain()}}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')drainLocalNotificationActions().finally(()=>syncPushState({reason:'foreground'}).catch(()=>{}))});
+applyTheme();setupNavigation();handleLaunchLink();setTimeout(()=>{renderNotificationStatus();drainLocalNotificationActions().finally(()=>syncPushState({reason:'startup'}).catch(()=>{}))},1200);
