@@ -1,4 +1,4 @@
-/* Personal Tracker UI polish patch — 5.5.3 */
+/* Personal Tracker UI polish patch — 5.5.4 */
 (()=>{
   'use strict';
 
@@ -73,6 +73,13 @@
     };
   }
 
+  // Use the selected checklist icon in the in-app header too (the previous checkmark was hard-coded HTML).
+  const appMark=document.querySelector('.appmark');
+  if(appMark){
+    appMark.innerHTML='<img src="icon.svg" alt="" aria-hidden="true">';
+    appMark.classList.add('appmark-image');
+  }
+
   // Tools menu behaves like a normal popover: outside click, tab switch, navigation and Back all close it.
   const tools=document.getElementById('toolsMenu');
   const toolsBtn=document.getElementById('openToolsBtn');
@@ -87,6 +94,29 @@
   },true);
   document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',closeTools,true));
   window.addEventListener('popstate',closeTools);
+
+  // Share app from the tools menu. Use native share sheet when available, otherwise copy the link.
+  if(tools&&!document.getElementById('toolsShareBtn')){
+    const shareBtn=document.createElement('button');
+    shareBtn.id='toolsShareBtn';
+    shareBtn.textContent='↗ שיתוף האפליקציה';
+    shareBtn.onclick=async()=>{
+      closeTools();
+      const url='https://personal-tracker-app.pages.dev/';
+      try{
+        if(navigator.share){
+          await navigator.share({title:'Personal Tracker',text:'אפליקציה לניהול מעקבים, משימות ותזכורות אישיות במקום אחד.',url});
+        }else if(navigator.clipboard?.writeText){
+          await navigator.clipboard.writeText(url);toast('הקישור הועתק ✓');
+        }else{
+          prompt('העתק את הקישור:',url);
+        }
+      }catch(err){
+        if(err?.name!=='AbortError')toast('לא ניתן היה לשתף כרגע');
+      }
+    };
+    tools.appendChild(shareBtn);
+  }
 
   // Simplify the relative-time area without removing any capability.
   const customBtn=document.getElementById('customRelativeToggleBtn');
@@ -106,6 +136,8 @@
     .snoozed-meta{color:inherit!important}
     #mainAttention .focus-item .task-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:5px}
     #toolsMenu{z-index:70}
+    .appmark.appmark-image{padding:0;overflow:hidden;background:transparent;box-shadow:0 9px 22px rgba(53,105,232,.18)}
+    .appmark.appmark-image img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
     .polish-relative-custom{margin-top:8px;padding-top:10px;border-top:1px solid var(--line)}
     #customRelativeToggleBtn{margin-top:6px}
     .quick-time{margin-bottom:10px}
