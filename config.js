@@ -1,10 +1,9 @@
 // Personal Tracker background push service.
 window.PERSONAL_TRACKER_PUSH_API = 'https://personal-tracker-push.yanivba10.workers.dev';
 
-// Load UI polish after the main app script has initialized.
+// Load optional UI and backup layers after the main app script has initialized.
 window.addEventListener('DOMContentLoaded',()=>{
-  const s=document.createElement('script');
-  s.src='polish.js?v=5.5.2';
-  s.defer=true;
-  document.body.appendChild(s);
+  const load=(src)=>{const s=document.createElement('script');s.src=src;s.defer=true;document.body.appendChild(s)};
+  load('polish.js?v=5.6.1');
+  load('backup.js?v=5.6.2');
 });
