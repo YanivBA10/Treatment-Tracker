@@ -1,4 +1,4 @@
-const CACHE='personal-tracker-v5.5.4';
+const CACHE='personal-tracker-v5.6.0';
 const ASSETS=['./','./index.html','./config.js','./app.js','./polish.js','./manifest.json','./icon.svg'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
@@ -36,7 +36,6 @@ async function notifyOpenClients(payload){
 self.addEventListener('notificationclick',e=>{
   const d=e.notification.data||{},rawAction=e.action;
   let action=rawAction;
-  // Legacy compatibility only: new notifications use direct-action-v1 and need no swap.
   if(d.actionMapping==='swap-done-snooze-v1'){
     if(rawAction==='done')action='snooze';
     else if(rawAction==='snooze')action='done';
