@@ -1,4 +1,4 @@
-/* Personal Tracker UI polish patch — 5.5.2 */
+/* Personal Tracker UI polish patch — 5.5.3 */
 (()=>{
   'use strict';
 
@@ -19,11 +19,12 @@
     return same?`נדחתה ל־${fmtClock(n)}`:`נדחתה ל־${fmtShortDate(n)} ${fmtClock(n)}`;
   };
 
-  function reminderMetaText(r){
+  function reminderMetaHtml(r){
     const repeat=(typeof reminderRepeatLabel==='function'?reminderRepeatLabel(r):(r.repeat==='daily'?'כל יום':r.repeat==='weekly'?'כל שבוע':'חד־פעמית'));
-    const base=r.repeat==='once'?`${fmtFullDate(r.date)}  |  ${r.time||''}`:`${repeat}  |  ${r.time||''}`;
+    const datePart=r.repeat==='once'?fmtFullDate(r.date):repeat;
+    const timePart=r.time||'';
     const snz=window.snoozeLabel(r.snoozedUntil);
-    return `${r.notify?'🔔  ':''}${base}${snz?`  •  ${snz}`:''}`;
+    return `<span class="meta-main">${r.notify?'🔔 ':''}<span class="meta-date">${datePart}</span>${timePart?`<span class="meta-sep">•</span><span class="meta-time">${timePart}</span>`:''}</span>${snz?`<span class="snooze-pill">${snz}</span>`:''}`;
   }
 
   // Improve reminder date/time hierarchy everywhere reminder cards are rendered.
@@ -32,7 +33,7 @@
     window.reminderCard=function(r,completed=false){
       const el=originalReminderCard(r,completed);
       const meta=el?.querySelector('.task-meta');
-      if(meta)meta.textContent=reminderMetaText(r);
+      if(meta){meta.innerHTML=reminderMetaHtml(r);meta.classList.add('reminder-meta-polished');}
       return el;
     };
   }
@@ -49,7 +50,7 @@
           const r=reminders[i];if(!r)return;
           const meta=card.querySelector('.task-meta');if(!meta)return;
           const snz=window.snoozeLabel(r.snoozedUntil);
-          meta.textContent=snz?`${reminderRepeatLabel(r)} · ${r.time} · ${snz}`:`${reminderRepeatLabel(r)} · ${r.time}`;
+          meta.innerHTML=`<span class="meta-main"><span>${reminderRepeatLabel(r)}</span><span class="meta-sep">•</span><span class="meta-time">${r.time||''}</span></span>${snz?`<span class="snooze-pill">${snz}</span>`:''}`;
           meta.classList.toggle('snoozed-meta',!!snz);
         });
       }catch(err){console.warn('home snooze polish',err)}
@@ -72,7 +73,7 @@
     };
   }
 
-  // Tools menu behaves like a normal popover: outside click, tab switch and Back all close it.
+  // Tools menu behaves like a normal popover: outside click, tab switch, navigation and Back all close it.
   const tools=document.getElementById('toolsMenu');
   const toolsBtn=document.getElementById('openToolsBtn');
   const closeTools=()=>tools?.classList.add('hidden');
@@ -80,6 +81,9 @@
     if(!tools||tools.classList.contains('hidden'))return;
     if(tools.contains(e.target)||toolsBtn?.contains(e.target))return;
     closeTools();
+  },true);
+  document.addEventListener('click',e=>{
+    if(e.target.closest('.tab,[data-view],[data-route],a,button')&&!e.target.closest('#toolsMenu,#openToolsBtn'))closeTools();
   },true);
   document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',closeTools,true));
   window.addEventListener('popstate',closeTools);
@@ -92,15 +96,20 @@
 
   const css=document.createElement('style');
   css.textContent=`
-    .task-meta{line-height:1.55;letter-spacing:.01em}
+    .task-meta{line-height:1.5;letter-spacing:.01em}
     .reminder-card .task-meta{margin-top:7px;font-variant-numeric:tabular-nums}
-    .snoozed-meta{color:var(--accent)!important;font-weight:750}
+    .reminder-meta-polished{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+    .meta-main{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .meta-sep{opacity:.55;font-size:.9em}
+    .meta-date,.meta-time{font-variant-numeric:tabular-nums;white-space:nowrap}
+    .snooze-pill{display:inline-flex;align-items:center;width:max-content;max-width:100%;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);font-weight:800;font-size:.9em;white-space:nowrap}
+    .snoozed-meta{color:inherit!important}
+    #mainAttention .focus-item .task-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:5px}
     #toolsMenu{z-index:70}
     .polish-relative-custom{margin-top:8px;padding-top:10px;border-top:1px solid var(--line)}
     #customRelativeToggleBtn{margin-top:6px}
     .quick-time{margin-bottom:10px}
     #todayView .today-group{margin-bottom:18px}
-    #mainAttention .focus-item .task-meta{margin-top:5px}
   `;
   document.head.appendChild(css);
 
