@@ -1,4 +1,4 @@
-/* Personal Tracker — tracker UX polish 5.6.9 */
+/* Personal Tracker — tracker UX polish 5.6.10 */
 (()=>{
   'use strict';
 
@@ -94,7 +94,9 @@
     #detailView .detail-nav button:not(.active){border-bottom-color:var(--line);transform:translateY(0)}
     #detailView .detail-nav button.active{background:var(--card);border-color:var(--line);border-bottom-color:var(--card);transform:translateY(1px);box-shadow:none}
     #detailView #detailToday:not(.hidden),#detailView #detailHistory:not(.hidden),#detailView #detailSettings:not(.hidden){margin-top:0}
-    #detailView #detailToday:not(.hidden)>.card:first-child,#detailView #detailHistory:not(.hidden)>.card:first-child,#detailView #detailSettings:not(.hidden)>.card:first-child{margin-top:0;border-top-right-radius:0}
+    #detailView #detailToday:not(.hidden)>.card:first-child,#detailView #detailHistory:not(.hidden)>.card:first-child,#detailView #detailSettings:not(.hidden)>.card:first-child{margin-top:0}
+    #detailView:has(.detail-nav button[data-detail="today"].active) #detailToday:not(.hidden)>.card:first-child{border-top-right-radius:0}
+    #detailView:has(.detail-nav button[data-detail="settings"].active) #detailSettings:not(.hidden)>.card:first-child{border-top-left-radius:0}
 
     /* Tracker management hierarchy */
     #detailSettings .tracker-manage-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:stretch}
