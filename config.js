@@ -7,5 +7,5 @@ window.addEventListener('DOMContentLoaded',()=>{
   load('polish.js?v=5.6.1');
   load('backup.js?v=5.6.2');
   load('ux-5.6.3.js?v=5.6.3');
-  load('ui-5.6.4.js?v=5.6.5');
+  load('ui-5.6.4.js?v=5.6.6');
 });
