@@ -6,4 +6,5 @@ window.addEventListener('DOMContentLoaded',()=>{
   const load=(src)=>{const s=document.createElement('script');s.src=src;s.defer=true;document.body.appendChild(s)};
   load('polish.js?v=5.6.1');
   load('backup.js?v=5.6.2');
+  load('ux-5.6.3.js?v=5.6.3');
 });
