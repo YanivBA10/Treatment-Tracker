@@ -1,4 +1,4 @@
-/* Personal Tracker icon + feedback polish — 5.6.4 */
+/* Personal Tracker icon + feedback polish — 5.6.5 */
 (()=>{
   'use strict';
 
@@ -65,7 +65,7 @@
   css.textContent=`
     .ui-bell{display:inline-flex;align-items:center;justify-content:center;width:1.05em;height:1.05em;vertical-align:-.13em;color:currentColor;flex:0 0 auto}
     .ui-bell svg{display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-    .task-meta .ui-bell,.reminder-meta-polished .ui-bell{color:var(--muted);opacity:.92}
+    .task-meta .ui-bell,.reminder-meta-polished .ui-bell{color:var(--muted);opacity:.92;vertical-align:-.02em;transform:translateY(-1px)}
     .tab .ui-bell{width:20px;height:20px;color:currentColor;vertical-align:0}
     #addMenuBackdrop .add-kind-icon .ui-bell{width:20px;height:20px;color:var(--accent);vertical-align:0}
 
