@@ -1,4 +1,4 @@
-/* Personal Tracker — tracker UX polish 5.6.10 */
+/* Personal Tracker — tracker UX polish 5.6.11 */
 (()=>{
   'use strict';
 
@@ -73,12 +73,29 @@
     meta.textContent=`${prefix} · התחלה ${shortDateWithYear(tr.startDate)}`;
   }
 
+  function polishSubtitles(){
+    const title=document.getElementById('appTitle');
+    const subtitle=document.getElementById('appSubtitle');
+    if(!title||!subtitle)return;
+    const map={
+      'ראשי':'מה חשוב עכשיו',
+      'מעקבים':'מעקב אחרי תהליכים מתמשכים',
+      'משימות':'דברים שצריך לבצע ולהשלים',
+      'תזכורות':'דברים שחשוב לזכור בזמן',
+      'ארכיון':'פריטים שסיימת או העברת לארכיון',
+      'הגדרות':'מראה, התראות, נתונים וגיבוי'
+    };
+    const next=map[title.textContent.trim()];
+    if(next&&subtitle.textContent!==next) subtitle.textContent=next;
+  }
+
   function polish(){
     ensureHelper();
     polishBuilder();
     polishDetailNav();
     polishManagement();
     polishTrackerDate();
+    polishSubtitles();
   }
 
   const css=document.createElement('style');
