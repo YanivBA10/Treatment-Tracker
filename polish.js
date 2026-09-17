@@ -1,4 +1,4 @@
-/* Personal Tracker UI polish patch — 5.5.4 */
+/* Personal Tracker visual + UX polish — 5.6.0 */
 (()=>{
   'use strict';
 
@@ -11,7 +11,6 @@
   const fmtClock=(ms)=>new Date(Number(ms)).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit',hour12:false});
   const fmtShortDate=(ms)=>new Date(Number(ms)).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'});
 
-  // Clearer snooze wording.
   window.snoozeLabel=function(ms){
     const n=Number(ms||0);if(!n||n<=Date.now())return '';
     const d=new Date(n),today=new Date();
@@ -27,7 +26,6 @@
     return `<span class="meta-main">${r.notify?'🔔 ':''}<span class="meta-date">${datePart}</span>${timePart?`<span class="meta-sep">•</span><span class="meta-time">${timePart}</span>`:''}</span>${snz?`<span class="snooze-pill">${snz}</span>`:''}`;
   }
 
-  // Improve reminder date/time hierarchy everywhere reminder cards are rendered.
   if(typeof window.reminderCard==='function'){
     const originalReminderCard=window.reminderCard;
     window.reminderCard=function(r,completed=false){
@@ -38,7 +36,33 @@
     };
   }
 
-  // Surface snooze state on the Home dashboard as well.
+  function enhanceHomeCards(){
+    document.querySelectorAll('#mainAttention .focus-item,#mainLater .focus-item').forEach(card=>{
+      const dot=card.querySelector('.focus-dot');
+      if(dot){
+        let label='פריט';
+        if(card.classList.contains('tracker-focus'))label='מעקב';
+        else if(card.classList.contains('reminder-focus'))label='תזכורת';
+        else if(card.classList.contains('task-focus'))label='משימה';
+        dot.textContent=label;
+        dot.classList.add('type-chip');
+        dot.setAttribute('aria-label',label);
+      }
+      card.setAttribute('role','button');
+      card.setAttribute('tabindex','0');
+      if(!card.dataset.keyboardReady){
+        card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();card.click();}});
+        card.dataset.keyboardReady='1';
+      }
+    });
+
+    document.querySelectorAll('#mainActive .work-task').forEach(card=>{
+      card.classList.add('home-work-task');
+      card.setAttribute('role','button');
+      card.setAttribute('tabindex','0');
+    });
+  }
+
   if(typeof window.renderTodayDashboard==='function'){
     const originalToday=window.renderTodayDashboard;
     window.renderTodayDashboard=function(){
@@ -53,11 +77,11 @@
           meta.innerHTML=`<span class="meta-main"><span>${reminderRepeatLabel(r)}</span><span class="meta-sep">•</span><span class="meta-time">${r.time||''}</span></span>${snz?`<span class="snooze-pill">${snz}</span>`:''}`;
           meta.classList.toggle('snoozed-meta',!!snz);
         });
-      }catch(err){console.warn('home snooze polish',err)}
+        enhanceHomeCards();
+      }catch(err){console.warn('home polish',err)}
     };
   }
 
-  // Clear, useful feedback when an action from a system notification is synced back into the app.
   if(typeof window.applyNotificationActionLocally==='function'){
     const originalApply=window.applyNotificationActionLocally;
     window.applyNotificationActionLocally=function(a){
@@ -73,14 +97,25 @@
     };
   }
 
-  // Use the selected checklist icon in the in-app header too (the previous checkmark was hard-coded HTML).
+  // Header: logo + title form one RTL brand block on the right; tools stay on the left.
+  const header=document.querySelector('.app > header');
   const appMark=document.querySelector('.appmark');
   if(appMark){
     appMark.innerHTML='<img src="icon.svg" alt="" aria-hidden="true">';
     appMark.classList.add('appmark-image');
   }
+  if(header&&!header.querySelector('.header-brand')){
+    const titleBlock=header.firstElementChild;
+    const actionRow=header.querySelector(':scope > .row');
+    if(titleBlock&&actionRow&&appMark){
+      const brand=document.createElement('div');
+      brand.className='header-brand';
+      brand.appendChild(appMark);
+      brand.appendChild(titleBlock);
+      header.insertBefore(brand,actionRow);
+    }
+  }
 
-  // Tools menu behaves like a normal popover: outside click, tab switch, navigation and Back all close it.
   const tools=document.getElementById('toolsMenu');
   const toolsBtn=document.getElementById('openToolsBtn');
   const closeTools=()=>tools?.classList.add('hidden');
@@ -95,7 +130,6 @@
   document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',closeTools,true));
   window.addEventListener('popstate',closeTools);
 
-  // Share app from the tools menu. Use native share sheet when available, otherwise copy the link.
   if(tools&&!document.getElementById('toolsShareBtn')){
     const shareBtn=document.createElement('button');
     shareBtn.id='toolsShareBtn';
@@ -108,17 +142,12 @@
           await navigator.share({title:'Personal Tracker',text:'אפליקציה לניהול מעקבים, משימות ותזכורות אישיות במקום אחד.',url});
         }else if(navigator.clipboard?.writeText){
           await navigator.clipboard.writeText(url);toast('הקישור הועתק ✓');
-        }else{
-          prompt('העתק את הקישור:',url);
-        }
-      }catch(err){
-        if(err?.name!=='AbortError')toast('לא ניתן היה לשתף כרגע');
-      }
+        }else prompt('העתק את הקישור:',url);
+      }catch(err){if(err?.name!=='AbortError')toast('לא ניתן היה לשתף כרגע');}
     };
     tools.appendChild(shareBtn);
   }
 
-  // Simplify the relative-time area without removing any capability.
   const customBtn=document.getElementById('customRelativeToggleBtn');
   if(customBtn){customBtn.textContent='זמן אחר';customBtn.setAttribute('aria-label','קביעת זמן יחסי אחר');}
   const relWrap=document.getElementById('relativeCustomWrap');
@@ -126,25 +155,85 @@
 
   const css=document.createElement('style');
   css.textContent=`
+    /* Global readability */
+    :root{--muted:#596579;--home-card-radius:26px}
+    html[data-theme="dark"]{--muted:#b1bac9}
+    body{background:radial-gradient(circle at 82% -8%,color-mix(in srgb,var(--accent) 12%,transparent),transparent 34%),var(--bg)}
+    .app{padding-inline:18px}
+
+    /* Header */
+    .app>header{direction:rtl;align-items:flex-start;margin-bottom:30px;padding-top:7px;gap:16px}
+    .header-brand{display:flex;align-items:center;gap:13px;min-width:0}
+    .header-brand .title{font-size:31px;line-height:1.05;letter-spacing:-.7px}
+    .header-brand .subtitle{font-size:14px;color:var(--muted);margin-top:7px}
+    .appmark.appmark-image{width:46px;height:46px;flex:0 0 46px;padding:0;overflow:hidden;background:transparent;border-radius:15px;box-shadow:0 8px 20px rgba(53,105,232,.16)}
+    .appmark.appmark-image img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+    .app>header>.row{direction:rtl;flex:0 0 auto}
+    .tools-btn{width:44px;height:44px;border-radius:15px;background:color-mix(in srgb,var(--card) 96%,transparent);box-shadow:var(--shadow-soft)}
+    #toolsMenu{z-index:70;min-width:190px;padding:8px;border-radius:18px;box-shadow:0 18px 46px rgba(25,43,72,.16)}
+    #toolsMenu button{font-weight:700;padding:12px 11px;border-radius:11px}
+
+    /* Home hierarchy */
+    #todayView .main-section{margin-bottom:27px}
+    #todayView .main-section-head{display:block;margin:0 4px 11px;text-align:right}
+    #todayView .main-section-title{font-size:22px;font-weight:900;letter-spacing:-.35px;line-height:1.2}
+    #todayView .main-section-note{font-size:13px;color:var(--muted);margin-top:5px;line-height:1.45}
+    #todayView .focus-list{border-radius:var(--home-card-radius);padding:4px 17px;background:var(--card);border:1px solid color-mix(in srgb,var(--line) 72%,transparent);box-shadow:0 10px 30px rgba(28,48,80,.075);overflow:hidden}
+    #todayView .focus-item{min-height:88px;padding:16px 1px;gap:12px;border-bottom-color:color-mix(in srgb,var(--line) 78%,transparent);transition:background .16s,transform .12s}
+    #todayView .focus-item:active{transform:scale(.994);background:color-mix(in srgb,var(--accent) 4%,transparent)}
+    #todayView .focus-title{font-size:19px;font-weight:850;letter-spacing:-.15px}
+    #todayView .focus-item .task-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:5px;color:var(--muted);font-size:13px;line-height:1.45}
+    #todayView .focus-arrow{width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:var(--surface);font-size:24px;color:#536177;flex:0 0 34px}
+    #todayView .focus-dot.type-chip{width:auto;height:auto;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:850;line-height:1;background:var(--soft);color:var(--accent);white-space:nowrap;flex:0 0 auto}
+    #todayView .tracker-focus .focus-dot.type-chip{background:color-mix(in srgb,var(--ok) 12%,var(--card));color:var(--ok)}
+    #todayView .reminder-focus .focus-dot.type-chip{background:color-mix(in srgb,#db8b2d 13%,var(--card));color:#9b5b09}
+    #todayView .task-focus .focus-dot.type-chip{background:color-mix(in srgb,#8065cb 13%,var(--card));color:#6848b6}
+
+    /* Active task card */
+    #mainActive .work-task{border-radius:24px;background:var(--card);padding:17px 18px;margin:0;border:1px solid color-mix(in srgb,var(--line) 72%,transparent);box-shadow:0 9px 28px rgba(28,48,80,.065);transition:transform .12s}
+    #mainActive .work-task:active{transform:scale(.994)}
+    #mainActive .tracker-name{font-size:19px;font-weight:850}
+    #mainActive .task-meta{font-size:13px;color:var(--muted);line-height:1.5;margin-top:5px}
+    #mainActive .check{width:39px;height:39px;border-radius:13px;border-width:2px}
+
+    /* Empty states */
+    #mainLater .empty,#mainAttention .empty,#mainActive .empty{font-size:14px;color:var(--muted);padding:25px 10px;line-height:1.55}
+    #mainLater .empty:before{content:'◷';display:block;margin:0 auto 8px;font-size:25px;color:color-mix(in srgb,var(--accent) 45%,var(--muted))}
+
+    /* FAB and nav */
+    .main-add{width:58px;height:58px;border-radius:19px;font-size:31px;bottom:calc(94px + env(safe-area-inset-bottom));box-shadow:0 14px 30px rgba(53,105,232,.30)}
+    .tabs{border-top-color:color-mix(in srgb,var(--line) 72%,transparent);box-shadow:0 -10px 32px rgba(25,43,72,.06)}
+    .tab{padding-top:11px;color:#687589}
+    .tab span{width:39px;height:32px;border-radius:13px;font-size:19px}
+    .tab.active{color:var(--accent)}
+    .tab.active span{background:color-mix(in srgb,var(--accent) 10%,var(--card))}
+
+    /* Reminder metadata */
     .task-meta{line-height:1.5;letter-spacing:.01em}
     .reminder-card .task-meta{margin-top:7px;font-variant-numeric:tabular-nums}
     .reminder-meta-polished{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
     .meta-main{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
     .meta-sep{opacity:.55;font-size:.9em}
     .meta-date,.meta-time{font-variant-numeric:tabular-nums;white-space:nowrap}
-    .snooze-pill{display:inline-flex;align-items:center;width:max-content;max-width:100%;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);font-weight:800;font-size:.9em;white-space:nowrap}
+    .snooze-pill{display:inline-flex;align-items:center;width:max-content;max-width:100%;padding:4px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);font-weight:800;font-size:.88em;white-space:nowrap}
     .snoozed-meta{color:inherit!important}
-    #mainAttention .focus-item .task-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:5px}
-    #toolsMenu{z-index:70}
-    .appmark.appmark-image{padding:0;overflow:hidden;background:transparent;box-shadow:0 9px 22px rgba(53,105,232,.18)}
-    .appmark.appmark-image img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+
     .polish-relative-custom{margin-top:8px;padding-top:10px;border-top:1px solid var(--line)}
     #customRelativeToggleBtn{margin-top:6px}
     .quick-time{margin-bottom:10px}
-    #todayView .today-group{margin-bottom:18px}
+
+    @media(max-width:480px){
+      .app{padding-inline:14px}
+      .app>header{margin-bottom:25px}
+      .header-brand{gap:10px}
+      .header-brand .title{font-size:29px}
+      .appmark.appmark-image{width:42px;height:42px;flex-basis:42px;border-radius:14px}
+      #todayView .main-section-title{font-size:20px}
+      #todayView .focus-title,#mainActive .tracker-name{font-size:18px}
+      #todayView .focus-item{min-height:82px}
+    }
   `;
   document.head.appendChild(css);
 
-  // Re-render once so the polish applies immediately to an already-open screen.
-  try{renderMain();}catch{}
+  try{renderMain();enhanceHomeCards();}catch{}
 })();
