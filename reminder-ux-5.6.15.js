@@ -1,4 +1,4 @@
-/* Personal Tracker — reminders UX + lifecycle polish 5.6.16 */
+/* Personal Tracker — reminders UX + lifecycle polish 5.6.17 */
 (()=>{
   'use strict';
 
@@ -69,10 +69,21 @@
     if(s)s.textContent=subtitle;
   }
 
+  const directOpenReminderEditor=typeof window.openReminderEditor==='function'?window.openReminderEditor:null;
+
   function openReminderDetail(id){
     if(typeof pushRoute==='function')pushRoute({route:'reminderDetail',reminderId:id});
   }
   window.openReminderDetail=openReminderDetail;
+
+  // Existing dashboard code opens a reminder by calling openReminderEditor(id).
+  // Keep creation (no id) opening the editor, but route existing reminders to details.
+  if(directOpenReminderEditor){
+    window.openReminderEditor=function(id=null){
+      if(id)return openReminderDetail(id);
+      return directOpenReminderEditor(id);
+    };
+  }
 
   function reopenReminder(r){
     r.status='active';
@@ -152,7 +163,7 @@
       const edit=document.createElement('button');
       edit.className='btn secondary';
       edit.textContent='ערוך';
-      edit.onclick=()=>openReminderEditor(r.id);
+      edit.onclick=()=>directOpenReminderEditor?.(r.id);
       const done=document.createElement('button');
       done.className='btn';
       done.textContent=r.repeat==='once'?'סמן כהושלמה':'סמן כהושלמה להיום';
@@ -253,6 +264,7 @@
     const originalEditor=window.renderReminderEditorRoute;
     window.renderReminderEditorRoute=function(id=null){
       originalEditor(id);
+      setHeader('תזכורות','דברים שחשוב לזכור בזמן');
       polishReminderEditor();
     };
   }
