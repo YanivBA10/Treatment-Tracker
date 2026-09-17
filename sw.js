@@ -1,5 +1,5 @@
-const CACHE='personal-tracker-v5.5.1';
-const ASSETS=['./','./index.html','./config.js','./app.js','./manifest.json','./icon.svg'];
+const CACHE='personal-tracker-v5.5.2';
+const ASSETS=['./','./index.html','./config.js','./app.js','./polish.js','./manifest.json','./icon.svg'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(r=>{const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return r}).catch(()=>caches.match(e.request).then(r=>r||caches.match('./index.html'))))});
@@ -36,9 +36,7 @@ async function notifyOpenClients(payload){
 self.addEventListener('notificationclick',e=>{
   const d=e.notification.data||{},rawAction=e.action;
   let action=rawAction;
-  // On the target Android/RTL notification UI, Chrome has been observed to return
-  // the opposite action id for the two visible buttons. Normalize only notifications
-  // explicitly marked by the Worker so the mapping remains scoped and testable.
+  // Legacy compatibility only: new notifications use direct-action-v1 and need no swap.
   if(d.actionMapping==='swap-done-snooze-v1'){
     if(rawAction==='done')action='snooze';
     else if(rawAction==='snooze')action='done';
