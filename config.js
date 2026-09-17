@@ -10,4 +10,5 @@ window.addEventListener('DOMContentLoaded',()=>{
   load('ui-5.6.4.js?v=5.6.7');
   load('tracker-ux-5.6.8.js?v=5.6.10');
   load('task-ux-5.6.12.js?v=5.6.14');
+  load('reminder-ux-5.6.15.js?v=5.6.15');
 });
