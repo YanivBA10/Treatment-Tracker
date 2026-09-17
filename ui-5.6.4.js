@@ -1,4 +1,4 @@
-/* Personal Tracker icon + feedback polish — 5.6.5 */
+/* Personal Tracker icon + feedback polish — 5.6.6 */
 (()=>{
   'use strict';
 
@@ -65,8 +65,8 @@
   css.textContent=`
     .ui-bell{display:inline-flex;align-items:center;justify-content:center;width:1.05em;height:1.05em;vertical-align:-.13em;color:currentColor;flex:0 0 auto}
     .ui-bell svg{display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-    .task-meta .ui-bell,.reminder-meta-polished .ui-bell{color:var(--muted);opacity:.92;vertical-align:-.02em;transform:translateY(-1px)}
-    .tab .ui-bell{width:20px;height:20px;color:currentColor;vertical-align:0}
+    .task-meta .ui-bell,.reminder-meta-polished .ui-bell{color:var(--muted);opacity:.92}
+    .tab .ui-bell{width:20px;height:20px;color:currentColor;vertical-align:0;transform:translateY(2px)}
     #addMenuBackdrop .add-kind-icon .ui-bell{width:20px;height:20px;color:var(--accent);vertical-align:0}
 
     .toast{top:max(18px,env(safe-area-inset-top));min-width:min(300px,calc(100vw - 32px));max-width:min(460px,calc(100vw - 32px));padding:14px 18px;border-radius:16px;font-size:15px;font-weight:700;line-height:1.45;text-align:center;box-shadow:0 14px 38px rgba(18,29,49,.24);z-index:160}
