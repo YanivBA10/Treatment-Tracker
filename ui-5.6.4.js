@@ -1,4 +1,4 @@
-/* Personal Tracker icon + feedback polish — 5.6.6 */
+/* Personal Tracker icon + feedback polish — 5.6.7 */
 (()=>{
   'use strict';
 
@@ -59,6 +59,47 @@
       el.classList.remove('show','important');
       toastTimer=null;
     },important?3200:2200);
+  };
+
+  /* Trackers UX: keep two clear metrics only — process day + today's completion. */
+  trackerCard=function(tr,archived=false){
+    const el=document.createElement('div');
+    el.className='tracker';
+    const st=todayStats(tr);
+    const completedToday=st.day>=1&&st.total>0&&st.done===st.total;
+    const todayText=completedToday?'הושלם להיום ✓':(st.day>=1&&st.total?`${st.done}/${st.total} היום`:(st.day<1?'טרם התחיל':'אין פעולות היום'));
+    const statusText=archived?'בארכיון':(completedToday?'✓ היום':'פעיל');
+    const dayProgress=(!tr.openEnded&&Number(tr.duration)>0&&st.day>=1)
+      ?Math.max(0,Math.min(100,Math.round((Math.min(st.day,Number(tr.duration))/Number(tr.duration))*100)))
+      :null;
+    el.innerHTML=`<div class="tracker-top"><div><div class="tracker-name">${esc(tr.name)}</div><div class="small">${trackerLabel(tr)} · ${todayText}</div></div><div class="badge ${completedToday?'ok':''}">${statusText}</div></div>${dayProgress!==null?`<div class="progress" aria-label="התקדמות בזמן"><div style="width:${dayProgress}%"></div></div>`:''}${archived?'<div class="actions"><button class="btn ghost smallbtn" data-restore>החזר לפעילים</button></div>':''}`;
+    el.onclick=()=>openTracker(tr.id);
+    if(archived)el.querySelector('[data-restore]').onclick=(e)=>{e.stopPropagation();tr.status='active';save();renderMain();toast('המעקב הוחזר לפעילים')};
+    return el;
+  };
+
+  /* History is history: show elapsed days and today only, never future 0/3 rows. */
+  renderDetailHistory=function(tr){
+    const box=document.getElementById('detailHistory');
+    box.innerHTML='<div class="card"><div class="section-title">היסטוריה</div><div class="small history-hint">לחץ על יום כדי לעדכן את הפעולות שלו.</div><div id="historyRows"></div></div>';
+    const rows=box.querySelector('#historyRows');
+    const today=trackerDay(tr);
+    const max=today<1?0:(tr.openEnded?today:Math.min(Number(tr.duration||0),today));
+    if(max<1){
+      rows.innerHTML='<div class="empty compact">עדיין אין ימים בהיסטוריה.</div>';
+      return;
+    }
+    for(let d=1;d<=max;d++){
+      const ts=tasksForDay(tr,d);
+      const done=ts.filter(t=>isDone(tr,d,t.id)).length;
+      const date=parseDate(tr.startDate);date.setDate(date.getDate()+d-1);
+      const row=document.createElement('div');row.className='history-day';
+      let txt=d===today?`היום · ${done}/${ts.length}`:`${done}/${ts.length}`,cls='';
+      if(d<today&&ts.length){if(done===ts.length){txt='הושלם';cls='ok'}else cls='miss'}
+      row.innerHTML=`<div><strong>יום ${d}</strong><div class="task-meta">${fmtDate(date,true)}</div></div><div class="status ${cls}">${txt}</div>`;
+      row.onclick=()=>openHistoryEditor(tr,d);
+      rows.appendChild(row);
+    }
   };
 
   const css=document.createElement('style');
