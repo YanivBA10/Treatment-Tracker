@@ -1,4 +1,4 @@
-/* Personal Tracker — tasks + depth navigation polish 5.6.12 */
+/* Personal Tracker — tasks + depth navigation polish 5.6.13 */
 (()=>{
   'use strict';
 
@@ -44,6 +44,14 @@
     btn?.classList.toggle('hidden',top);
     if(btn&&!top)btn.textContent=EDIT_VIEWS.has(view)?'ביטול':'← חזרה';
     BACK_SELECTORS.forEach(sel=>document.querySelector(sel)?.classList.toggle('depth-inline-back-hidden',!top));
+  }
+
+  if(typeof window.showOnly==='function'){
+    const originalShowOnly=window.showOnly;
+    window.showOnly=function(id){
+      originalShowOnly(id);
+      requestAnimationFrame(syncHeaderMode);
+    };
   }
 
   function statusChipForTask(t){
@@ -180,8 +188,6 @@
   `;
   document.head.appendChild(css);
 
-  const observer=new MutationObserver(()=>requestAnimationFrame(()=>{syncHeaderMode();polishTaskEditor();}));
-  if(document.body)observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
   syncHeaderMode();polishTaskEditor();
-  setTimeout(()=>{syncHeaderMode();polishTaskEditor();},300);
+  try{if(typeof renderMain==='function')renderMain();}catch{}
 })();
