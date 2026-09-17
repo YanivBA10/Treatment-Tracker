@@ -1,4 +1,4 @@
-const CACHE='personal-tracker-v5.6.12';
+const CACHE='personal-tracker-v5.6.13';
 const ASSETS=['./','./index.html','./config.js','./app.js','./polish.js','./backup.js','./ux-5.6.3.js','./ui-5.6.4.js','./tracker-ux-5.6.8.js','./task-ux-5.6.12.js','./manifest.json','./icon.svg'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
