@@ -1,4 +1,4 @@
-/* Personal Tracker — tasks + depth navigation polish 5.6.13 */
+/* Personal Tracker — tasks + depth navigation polish 5.6.14 */
 (()=>{
   'use strict';
 
@@ -11,6 +11,13 @@
     const p=String(dateStr).split('-').map(Number);
     if(p.length!==3||p.some(Number.isNaN))return dateStr;
     return `${String(p[2]).padStart(2,'0')}.${String(p[1]).padStart(2,'0')}.${String(p[0]).slice(-2)}`;
+  }
+  function dateTimeHtml(dateStr,time){
+    const d=shortDate(dateStr),tm=String(time||'');
+    if(d&&tm)return `<span class="task-date-time" dir="ltr">${d} · ${tm}</span>`;
+    if(d)return `<span class="task-date-time" dir="ltr">${d}</span>`;
+    if(tm)return `<span class="task-date-time" dir="ltr">${tm}</span>`;
+    return '';
   }
 
   function ensureDepthNav(){
@@ -48,10 +55,7 @@
 
   if(typeof window.showOnly==='function'){
     const originalShowOnly=window.showOnly;
-    window.showOnly=function(id){
-      originalShowOnly(id);
-      requestAnimationFrame(syncHeaderMode);
-    };
+    window.showOnly=function(id){originalShowOnly(id);requestAnimationFrame(syncHeaderMode);};
   }
 
   function statusChipForTask(t){
@@ -64,11 +68,8 @@
   function taskMetaParts(t){
     const due=typeof taskDueState==='function'?taskDueState(t):'open';
     const primary=[];
-    if(t.dueDate)primary.push(due==='today'?'יעד היום':`יעד ${shortDate(t.dueDate)}`);
-    if(t.reminderDate&&t.reminderTime){
-      const reminderDate=t.reminderDate===t.dueDate?'':`${shortDate(t.reminderDate)} `;
-      primary.push(`🔔 ${reminderDate}${t.reminderTime}`);
-    }
+    if(t.dueDate)primary.push(due==='today'?'יעד היום':`יעד ${dateTimeHtml(t.dueDate,'')}`);
+    if(t.reminderDate&&t.reminderTime)primary.push(`🔔 ${dateTimeHtml(t.reminderDate,t.reminderTime)}`);
     const snz=typeof snoozeLabel==='function'?snoozeLabel(t.snoozedUntil):'';
     if(snz)primary.push(snz);
     const secondary=[];
@@ -83,7 +84,7 @@
       const el=document.createElement('div');
       const due=taskDueState(t),m=taskMetaParts(t);
       el.className='work-task'+(t.status==='completed'?' completed':'')+(due==='overdue'?' overdue':'');
-      el.innerHTML=`<div class="reminder-main"><div class="grow"><div class="task-title-line"><div class="tracker-name">${esc(t.title)}</div>${statusChipForTask(t)}</div>${!compact&&t.description?`<div class="reminder-description">${esc(t.description)}</div>`:''}${m.primary.length?`<div class="task-meta task-primary-meta">${m.primary.map(x=>`<span>${x}</span>`).join('<span class="task-meta-sep">•</span>')}</div>`:''}${m.secondary.length?`<div class="task-secondary-meta">${m.secondary.map(x=>`<span class="task-mini-chip">${x}</span>`).join('')}</div>`:''}</div><button class="check reminder-check" aria-label="סימון בוצע">${t.status==='completed'?'✓':''}</button></div>`;
+      el.innerHTML=`<div class="reminder-main"><div class="grow"><div class="task-title-line"><div class="tracker-name">${esc(t.title)}</div>${statusChipForTask(t)}</div>${!compact&&t.description?`<div class="reminder-description">${esc(t.description)}</div>`:''}${m.primary.length?`<div class="task-meta task-primary-meta">${m.primary.map(x=>`<span class="task-meta-item">${x}</span>`).join('<span class="task-meta-sep">•</span>')}</div>`:''}${m.secondary.length?`<div class="task-secondary-meta">${m.secondary.map(x=>`<span class="task-mini-chip">${x}</span>`).join('')}</div>`:''}</div><button class="check reminder-check" aria-label="סימון בוצע">${t.status==='completed'?'✓':''}</button></div>`;
       el.querySelector('.reminder-check').onclick=e=>{e.stopPropagation();setWholeTaskDone(t,t.status!=='completed')};
       el.onclick=()=>openTaskDetail(t.id);
       return el;
@@ -107,12 +108,9 @@
       if(meta){
         const parts=[];
         const due=taskDueState(t);
-        if(t.dueDate)parts.push(due==='today'?'יעד היום':`יעד ${shortDate(t.dueDate)}`);
-        if(t.reminderDate&&t.reminderTime){
-          const d=t.reminderDate===t.dueDate?'':`${shortDate(t.reminderDate)} `;
-          parts.push(`🔔 ${d}${t.reminderTime}`);
-        }
-        meta.textContent=parts.join(' · ');
+        if(t.dueDate)parts.push(due==='today'?'יעד היום':`יעד ${dateTimeHtml(t.dueDate,'')}`);
+        if(t.reminderDate&&t.reminderTime)parts.push(`🔔 ${dateTimeHtml(t.reminderDate,t.reminderTime)}`);
+        meta.innerHTML=parts.join('<span class="task-detail-sep">•</span>');
         meta.classList.toggle('hidden',!parts.length);
       }
       const host=document.getElementById('taskDetailSubtasks');
@@ -120,16 +118,31 @@
       const pr=taskProgress(t);
       if(section&&pr.total){
         let prog=section.querySelector('.task-detail-progress-visual');
-        if(!prog){
-          prog=document.createElement('div');prog.className='task-detail-progress-visual';
-          section.querySelector('.section-title')?.insertAdjacentElement('afterend',prog);
-        }
+        if(!prog){prog=document.createElement('div');prog.className='task-detail-progress-visual';section.querySelector('.section-title')?.insertAdjacentElement('afterend',prog);}
         const pct=Math.round(pr.done/pr.total*100);
-        prog.innerHTML=`<div class="task-progress-head"><span>${pr.done} מתוך ${pr.total} שלבים</span><span>${pct}%</span></div><div class="task-progress-bar"><div style="width:${pct}%"></div></div>`;
+        prog.innerHTML=`<div class="task-progress-head"><span>${pr.done} מתוך ${pr.total} שלבים</span></div><div class="task-progress-bar"><div style="width:${pct}%"></div></div>`;
       }else section?.querySelector('.task-detail-progress-visual')?.remove();
       const old=document.getElementById('taskDetailProgress');if(old)old.classList.add('hidden');
       syncHeaderMode();
     };
+  }
+
+  function ensureTimingSection(){
+    const due=document.getElementById('workTaskDueDate');
+    const reminderDate=document.getElementById('workTaskReminderDate');
+    const reminderTime=document.getElementById('workTaskReminderTime');
+    const grid=due?.closest('.field-grid');
+    if(!due||!reminderDate||!reminderTime||!grid)return;
+    if(grid.closest('.task-timing-section'))return;
+    const timeLabel=reminderTime.previousElementSibling;
+    const wrap=document.createElement('div');
+    wrap.className='task-timing-section';
+    const head=document.createElement('div');head.className='task-timing-title';head.textContent='זמן ותזכורת';
+    const help=document.createElement('div');help.className='small task-timing-help';help.textContent='יעד הוא מועד הסיום. תזכורת קובעת מתי לקבל התראה.';
+    grid.parentElement.insertBefore(wrap,grid);
+    wrap.append(head,help,grid);
+    if(timeLabel?.tagName==='LABEL')wrap.appendChild(timeLabel);
+    wrap.appendChild(reminderTime);
   }
 
   function polishTaskEditor(){
@@ -148,6 +161,7 @@
     if(dueLabel)dueLabel.innerHTML='תאריך יעד <span class="optional">(אופציונלי)</span>';
     if(reminderDateLabel)reminderDateLabel.innerHTML='תאריך תזכורת <span class="optional">(אופציונלי)</span>';
     if(reminderTimeLabel?.tagName==='LABEL')reminderTimeLabel.innerHTML='שעת תזכורת <span class="optional">(אופציונלי)</span>';
+    ensureTimingSection();
 
     const showLabel=document.querySelector('label[for="workTaskShowOnMain"]');
     if(showLabel)showLabel.textContent='הצג ב״פעיל עכשיו״';
@@ -166,25 +180,33 @@
   const css=document.createElement('style');
   css.textContent=`
     .depth-inline-back-hidden{display:none!important}
-    .depth-nav-btn{min-width:76px;height:40px;padding:0 12px;border-radius:13px;box-shadow:var(--shadow-soft)!important;color:var(--accent)!important;font-weight:800}
+    .depth-nav-btn{min-width:0!important;height:38px;padding:0 4px!important;border:0!important;background:transparent!important;box-shadow:none!important;color:var(--accent)!important;font-weight:800;font-size:15px}
+    .depth-nav-btn:active{opacity:.65}
     .task-title-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .task-state-chip{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:850;line-height:1.2;background:var(--soft);color:var(--muted)}
     .task-state-chip.overdue,.task-detail-state.overdue{background:color-mix(in srgb,var(--danger) 10%,var(--card));color:var(--danger)}
     .task-state-chip.done,.task-detail-state.done{background:color-mix(in srgb,var(--ok) 12%,var(--card));color:var(--ok)}
     .task-primary-meta{display:flex;flex-wrap:wrap;align-items:center;gap:5px 7px;margin-top:7px}
-    .task-meta-sep{opacity:.45}
+    .task-meta-item{display:inline-flex;align-items:center;gap:4px;unicode-bidi:isolate}
+    .task-date-time{display:inline-block;white-space:nowrap;font-variant-numeric:tabular-nums;unicode-bidi:isolate}
+    .task-meta-sep,.task-detail-sep{opacity:.45;margin-inline:6px}
     .task-secondary-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
     .task-mini-chip{display:inline-flex;padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--accent) 8%,var(--card));color:var(--muted);font-size:11px;font-weight:700}
     .work-task.overdue{border-color:color-mix(in srgb,var(--danger) 32%,var(--line))}
     .task-detail-state{display:inline-flex;width:max-content;padding:5px 9px;border-radius:999px;margin-bottom:9px;background:var(--soft);color:var(--muted);font-size:12px;font-weight:800}
+    #taskDetailMeta{display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-top:7px}
     .task-detail-progress-visual{margin:2px 0 16px}
-    .task-progress-head{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px;font-weight:750;margin-bottom:7px}
+    .task-progress-head{color:var(--muted);font-size:12px;font-weight:750;margin-bottom:7px}
     .task-progress-bar{height:7px;border-radius:99px;overflow:hidden;background:color-mix(in srgb,var(--line) 72%,transparent)}
     .task-progress-bar>div{height:100%;border-radius:inherit;background:var(--accent)}
-    #taskEditorView .field-grid{align-items:end}
-    #taskEditorView .show-main-line{margin-top:18px}
+    .task-timing-section{margin-top:22px;padding:15px;border:1px solid var(--line);border-radius:18px;background:color-mix(in srgb,var(--surface) 82%,var(--card))}
+    .task-timing-title{font-size:17px;font-weight:850;margin-bottom:3px}
+    .task-timing-help{margin-bottom:4px;line-height:1.45}
+    .task-timing-section .field-grid{margin-top:4px;align-items:end}
+    .task-timing-section>label{margin-top:12px}
+    #taskEditorView .show-main-line{margin-top:16px}
     #taskEditorView .card{padding-bottom:20px}
-    @media(max-width:480px){.depth-nav-btn{min-width:68px;padding-inline:10px}}
+    @media(max-width:480px){.depth-nav-btn{padding-inline:2px!important}}
   `;
   document.head.appendChild(css);
 
