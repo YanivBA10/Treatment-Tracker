@@ -9,5 +9,5 @@ window.addEventListener('DOMContentLoaded',()=>{
   load('ux-5.6.3.js?v=5.6.3');
   load('ui-5.6.4.js?v=5.6.7');
   load('tracker-ux-5.6.8.js?v=5.6.10');
-  load('task-ux-5.6.12.js?v=5.6.12');
+  load('task-ux-5.6.12.js?v=5.6.13');
 });
