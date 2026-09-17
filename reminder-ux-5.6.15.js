@@ -1,4 +1,4 @@
-/* Personal Tracker — reminders UX + lifecycle polish 5.6.15 */
+/* Personal Tracker — reminders UX + lifecycle polish 5.6.16 */
 (()=>{
   'use strict';
 
@@ -118,7 +118,7 @@
     desc.textContent=r.description||'';
     desc.classList.toggle('hidden',!r.description);
 
-    document.getElementById('reminderDetailWhen').textContent=`מועד: ${reminderWhen(r)}`;
+    document.getElementById('reminderDetailWhen').textContent=`מועד: ${r.repeat&&r.repeat!=='once'?(r.time||''):reminderWhen(r)}`;
 
     const repeat=document.getElementById('reminderDetailRepeat');
     if(r.repeat&&r.repeat!=='once'){
