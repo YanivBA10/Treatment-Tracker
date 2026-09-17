@@ -8,5 +8,6 @@ window.addEventListener('DOMContentLoaded',()=>{
   load('backup.js?v=5.6.2');
   load('ux-5.6.3.js?v=5.6.3');
   load('ui-5.6.4.js?v=5.6.7');
-  load('tracker-ux-5.6.8.js?v=5.6.8');
+  load('tracker-ux-5.6.8.js?v=5.6.10');
+  load('task-ux-5.6.12.js?v=5.6.12');
 });
