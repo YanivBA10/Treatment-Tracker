@@ -1,4 +1,4 @@
-/* Personal Tracker icon + feedback polish — 5.6.19 */
+/* Personal Tracker icon + feedback polish — 5.6.20 */
 (()=>{
   'use strict';
 
@@ -114,11 +114,19 @@
     .ui-bell svg{display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
     .task-meta .ui-bell,.reminder-meta-polished .ui-bell{color:var(--muted);opacity:.92}
     .tab .ui-bell{width:20px;height:20px;color:currentColor;vertical-align:0;transform:translateY(2px)}
-    .history-task-actions{display:flex;flex-direction:column;align-items:center;gap:7px;flex:0 0 auto}
+    .history-task{align-items:center}
     .history-task.skipped{background:color-mix(in srgb,var(--warn) 6%,var(--card));border-color:color-mix(in srgb,var(--warn) 24%,var(--line))}
-    .skip-action{font-size:11px!important;padding:6px 9px!important;white-space:nowrap;color:var(--muted)!important}
-    .skip-action.active{background:color-mix(in srgb,var(--warn) 12%,var(--card))!important;color:var(--warn)!important;border-color:color-mix(in srgb,var(--warn) 30%,var(--line))!important}
+    .history-choice-group{display:grid;grid-template-columns:1fr 1fr;gap:7px;min-width:188px;flex:0 0 auto}
+    .history-choice{min-height:42px;padding:8px 11px;border:1px solid var(--line);border-radius:13px;background:var(--card);color:var(--muted);font:inherit;font-size:12px;font-weight:800;white-space:nowrap}
+    .history-choice.done-choice.selected{background:color-mix(in srgb,var(--ok) 13%,var(--card));border-color:color-mix(in srgb,var(--ok) 42%,var(--line));color:var(--ok)}
+    .history-choice.skipped-choice.selected{background:color-mix(in srgb,var(--warn) 13%,var(--card));border-color:color-mix(in srgb,var(--warn) 42%,var(--line));color:var(--warn)}
+    .history-choice:active{transform:translateY(1px)}
     .status.acknowledged{background:color-mix(in srgb,var(--warn) 10%,var(--card));color:var(--warn)}
+    @media(max-width:430px){
+      .history-task{align-items:stretch;flex-direction:column}
+      .history-choice-group{min-width:0;width:100%;margin-top:10px}
+      .history-choice{min-height:40px}
+    }
 
     #addMenuBackdrop .add-kind-icon .ui-bell{width:20px;height:20px;color:var(--accent);vertical-align:0}
 
