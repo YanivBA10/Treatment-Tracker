@@ -1,4 +1,4 @@
-/* Personal Tracker icon + feedback polish — 5.6.21 */
+/* Personal Tracker icon + feedback polish — 5.6.22 */
 (()=>{
   'use strict';
 
@@ -116,9 +116,13 @@
     .tab .ui-bell{width:20px;height:20px;color:currentColor;vertical-align:0;transform:translateY(2px)}
     .history-modal-tasks{padding-left:12px!important;padding-right:2px!important;padding-bottom:18px;scrollbar-gutter:stable}
     .history-modal .modal-actions{padding-top:10px}
-    .history-modal .task.history-task{align-items:center;padding:10px 12px;margin:7px 0;border-radius:16px}
-    .history-task.done{background:color-mix(in srgb,var(--ok) 5%,var(--card));border-color:color-mix(in srgb,var(--ok) 30%,var(--line))}
-    .history-task.skipped{background:color-mix(in srgb,var(--warn) 5%,var(--card));border-color:color-mix(in srgb,var(--warn) 28%,var(--line))}
+    .history-modal .task.history-task{align-items:center;padding:10px 12px;margin:7px 0;border-radius:16px;background:var(--surface)}
+    .history-task.done{background:var(--surface);border-color:color-mix(in srgb,var(--ok) 20%,var(--line))}
+    .history-task.skipped{background:var(--surface);border-color:color-mix(in srgb,var(--warn) 20%,var(--line))}
+    .tracker-action-row{align-items:center;background:var(--surface);padding:11px 12px}
+    .tracker-action-row.done{background:var(--surface);border-color:color-mix(in srgb,var(--ok) 20%,var(--line))}
+    .today-choice-group{flex:0 0 auto;min-width:92px}
+    .today-choice-group .history-choice{width:100%;border:1px solid var(--line);border-radius:12px}
     .history-choice-group{display:grid;grid-template-columns:1fr 1fr;gap:0;min-width:184px;flex:0 0 auto;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
     .history-choice{min-height:36px;padding:7px 10px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:800;white-space:nowrap}
     .history-choice+ .history-choice{border-inline-start:1px solid var(--line)}
@@ -130,6 +134,9 @@
       .history-modal-tasks{padding-left:11px!important;padding-bottom:20px}
       .history-modal .task.history-task{align-items:stretch;flex-direction:column;padding:10px 11px}
       .history-choice-group{min-width:0;width:100%;margin-top:8px}
+      .today-choice-group{width:100%;min-width:0;margin-top:8px}
+      .tracker-action-row{align-items:stretch;flex-direction:column}
+      .tracker-action-row .today-choice-group{margin-top:8px}
       .history-choice{min-height:35px;padding-block:6px}
     }
 
