@@ -1,4 +1,4 @@
-/* Personal Tracker icon + feedback polish — 5.6.20 */
+/* Personal Tracker icon + feedback polish — 5.6.21 */
 (()=>{
   'use strict';
 
@@ -114,18 +114,23 @@
     .ui-bell svg{display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
     .task-meta .ui-bell,.reminder-meta-polished .ui-bell{color:var(--muted);opacity:.92}
     .tab .ui-bell{width:20px;height:20px;color:currentColor;vertical-align:0;transform:translateY(2px)}
-    .history-task{align-items:center}
-    .history-task.skipped{background:color-mix(in srgb,var(--warn) 6%,var(--card));border-color:color-mix(in srgb,var(--warn) 24%,var(--line))}
-    .history-choice-group{display:grid;grid-template-columns:1fr 1fr;gap:7px;min-width:188px;flex:0 0 auto}
-    .history-choice{min-height:42px;padding:8px 11px;border:1px solid var(--line);border-radius:13px;background:var(--card);color:var(--muted);font:inherit;font-size:12px;font-weight:800;white-space:nowrap}
-    .history-choice.done-choice.selected{background:color-mix(in srgb,var(--ok) 13%,var(--card));border-color:color-mix(in srgb,var(--ok) 42%,var(--line));color:var(--ok)}
-    .history-choice.skipped-choice.selected{background:color-mix(in srgb,var(--warn) 13%,var(--card));border-color:color-mix(in srgb,var(--warn) 42%,var(--line));color:var(--warn)}
-    .history-choice:active{transform:translateY(1px)}
+    .history-modal-tasks{padding-left:12px!important;padding-right:2px!important;padding-bottom:18px;scrollbar-gutter:stable}
+    .history-modal .modal-actions{padding-top:10px}
+    .history-modal .task.history-task{align-items:center;padding:10px 12px;margin:7px 0;border-radius:16px}
+    .history-task.done{background:color-mix(in srgb,var(--ok) 5%,var(--card));border-color:color-mix(in srgb,var(--ok) 30%,var(--line))}
+    .history-task.skipped{background:color-mix(in srgb,var(--warn) 5%,var(--card));border-color:color-mix(in srgb,var(--warn) 28%,var(--line))}
+    .history-choice-group{display:grid;grid-template-columns:1fr 1fr;gap:0;min-width:184px;flex:0 0 auto;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+    .history-choice{min-height:36px;padding:7px 10px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:800;white-space:nowrap}
+    .history-choice+ .history-choice{border-inline-start:1px solid var(--line)}
+    .history-choice.done-choice.selected{background:color-mix(in srgb,var(--ok) 14%,var(--card));color:var(--ok)}
+    .history-choice.skipped-choice.selected{background:color-mix(in srgb,var(--warn) 14%,var(--card));color:var(--warn)}
+    .history-choice:active{background:var(--soft)}
     .status.acknowledged{background:color-mix(in srgb,var(--warn) 10%,var(--card));color:var(--warn)}
     @media(max-width:430px){
-      .history-task{align-items:stretch;flex-direction:column}
-      .history-choice-group{min-width:0;width:100%;margin-top:10px}
-      .history-choice{min-height:40px}
+      .history-modal-tasks{padding-left:11px!important;padding-bottom:20px}
+      .history-modal .task.history-task{align-items:stretch;flex-direction:column;padding:10px 11px}
+      .history-choice-group{min-width:0;width:100%;margin-top:8px}
+      .history-choice{min-height:35px;padding-block:6px}
     }
 
     #addMenuBackdrop .add-kind-icon .ui-bell{width:20px;height:20px;color:var(--accent);vertical-align:0}
