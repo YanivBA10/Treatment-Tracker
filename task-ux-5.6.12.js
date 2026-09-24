@@ -1,4 +1,4 @@
-/* Personal Tracker — tasks + depth navigation polish 5.6.23 */
+/* Personal Tracker — tasks + depth navigation polish 5.6.24 */
 (()=>{
   'use strict';
 
@@ -124,6 +124,10 @@
       const box=document.getElementById('tasksList'),done=document.getElementById('completedTasks');
       if(!box)return;
       box.innerHTML='';
+      const intro=document.createElement('div');
+      intro.className='task-time-help';
+      intro.textContent='המשימות מסודרות אוטומטית לפי תאריך היעד. “בקרוב” = 7 הימים הקרובים.';
+      box.appendChild(intro);
       const active=(state.tasks||[]).filter(t=>t.status!=='completed');
       const groups=[
         ['באיחור',active.filter(t=>taskBucket(t)==='overdue'),'overdue'],
@@ -262,6 +266,7 @@
     .task-secondary-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
     .task-mini-chip{display:inline-flex;padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--accent) 8%,var(--card));color:var(--muted);font-size:11px;font-weight:700}
     .work-task.overdue{border-color:color-mix(in srgb,var(--danger) 32%,var(--line))}
+    .task-time-help{margin:2px 2px 12px;color:var(--muted);font-size:12px;line-height:1.55}
     .task-time-group{margin-top:18px}
     .task-time-group:first-child{margin-top:8px}
     .task-time-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 8px;font-size:14px;font-weight:850;color:var(--text)}
