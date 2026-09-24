@@ -1,4 +1,4 @@
-/* Personal Tracker — tasks + depth navigation polish 5.6.26 */
+/* Personal Tracker — tasks + depth navigation polish 5.6.27 */
 (()=>{
   'use strict';
 
@@ -65,17 +65,29 @@
     return '';
   }
 
+  function completionDateTimeHtml(ts){
+    if(!ts)return '';
+    const d=new Date(ts);
+    const date=`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(-2)}`;
+    const time=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return `<span class="task-date-time" dir="ltr">${date} · ${time}</span>`;
+  }
+
   function taskMetaParts(t){
     const due=typeof taskDueState==='function'?taskDueState(t):'open';
     const primary=[];
+    const secondary=[];
+    if(t.status==='completed'){
+      if(t.completedAt)primary.push(completionDateTimeHtml(t.completedAt));
+      return {primary,secondary};
+    }
     if(t.dueDate)primary.push(due==='today'?'יעד היום':`יעד ${dateTimeHtml(t.dueDate,'')}`);
     if(t.reminderDate&&t.reminderTime)primary.push(`🔔 ${dateTimeHtml(t.reminderDate,t.reminderTime)}`);
     const snz=typeof snoozeLabel==='function'?snoozeLabel(t.snoozedUntil):'';
     if(snz)primary.push(snz);
-    const secondary=[];
     const pr=typeof taskProgress==='function'?taskProgress(t):{done:0,total:0};
     if(pr.total)secondary.push(`${pr.done}/${pr.total} שלבים`);
-    if(t.showOnMain&&t.status!=='completed')secondary.push('פעיל עכשיו');
+    if(t.showOnMain)secondary.push('פעיל עכשיו');
     return {primary,secondary};
   }
 
@@ -179,18 +191,20 @@
       }
       const meta=document.getElementById('taskDetailMeta');
       if(meta){
-        const parts=[];
-        const due=taskDueState(t);
-        if(t.dueDate)parts.push(due==='today'?'יעד היום':`יעד ${dateTimeHtml(t.dueDate,'')}`);
-        if(t.reminderDate&&t.reminderTime)parts.push(`🔔 ${dateTimeHtml(t.reminderDate,t.reminderTime)}`);
-        if(t.status==='completed'&&t.completedAt){
-          const d=new Date(t.completedAt);
-          const completedDate=`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(-2)}`;
-          const completedTime=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-          parts.push(`הושלמה <span class="task-date-time" dir="ltr">${completedDate} · ${completedTime}</span>`);
+        if(t.status==='completed'){
+          const rows=[];
+          if(t.completedAt)rows.push(`<div class="task-completed-meta-main">הושלמה ב־${completionDateTimeHtml(t.completedAt)}</div>`);
+          if(t.dueDate)rows.push(`<div class="task-completed-meta-secondary">יעד מקורי: ${dateTimeHtml(t.dueDate,'')}</div>`);
+          meta.innerHTML=rows.join('');
+          meta.classList.toggle('hidden',!rows.length);
+        }else{
+          const parts=[];
+          const due=taskDueState(t);
+          if(t.dueDate)parts.push(due==='today'?'יעד היום':`יעד ${dateTimeHtml(t.dueDate,'')}`);
+          if(t.reminderDate&&t.reminderTime)parts.push(`🔔 ${dateTimeHtml(t.reminderDate,t.reminderTime)}`);
+          meta.innerHTML=parts.join('<span class="task-detail-sep">•</span>');
+          meta.classList.toggle('hidden',!parts.length);
         }
-        meta.innerHTML=parts.join('<span class="task-detail-sep">•</span>');
-        meta.classList.toggle('hidden',!parts.length);
       }
       const host=document.getElementById('taskDetailSubtasks');
       const section=host?.closest('.card');
@@ -201,14 +215,43 @@
         const pct=Math.round(pr.done/pr.total*100);
         prog.innerHTML=`<div class="task-progress-head"><span>${pr.done} מתוך ${pr.total} שלבים</span></div><div class="task-progress-bar"><div style="width:${pct}%"></div></div>`;
       }else section?.querySelector('.task-detail-progress-visual')?.remove();
+
+      if(section&&host){
+        let completedSummary=section.querySelector('.task-completed-subtasks-summary');
+        if(t.status==='completed'&&pr.total){
+          if(!completedSummary){
+            completedSummary=document.createElement('button');
+            completedSummary.type='button';
+            completedSummary.className='task-completed-subtasks-summary';
+            section.querySelector('.section-title')?.insertAdjacentElement('afterend',completedSummary);
+          }
+          host.classList.add('task-completed-subtasks-collapsed');
+          completedSummary.dataset.open='0';
+          completedSummary.innerHTML=`<span>${pr.done} מתוך ${pr.total} שלבים הושלמו</span><span class="task-completed-subtasks-action">הצג שלבים</span>`;
+          completedSummary.onclick=()=>{
+            const open=completedSummary.dataset.open==='1';
+            completedSummary.dataset.open=open?'0':'1';
+            host.classList.toggle('task-completed-subtasks-collapsed',open);
+            completedSummary.querySelector('.task-completed-subtasks-action').textContent=open?'הצג שלבים':'הסתר שלבים';
+          };
+        }else{
+          completedSummary?.remove();
+          host.classList.remove('task-completed-subtasks-collapsed');
+        }
+      }
+
       const old=document.getElementById('taskDetailProgress');if(old)old.classList.add('hidden');
       const doneBtn=document.getElementById('taskDetailDoneBtn');
       const editBtn=document.getElementById('taskDetailEditBtn');
       if(doneBtn){
-        doneBtn.classList.toggle('secondary',t.status==='completed');
+        doneBtn.classList.toggle('secondary',false);
+        doneBtn.classList.toggle('ghost',t.status==='completed');
         doneBtn.classList.toggle('task-reopen-secondary',t.status==='completed');
       }
-      if(editBtn)editBtn.classList.toggle('ghost',t.status==='completed');
+      if(editBtn){
+        editBtn.classList.toggle('secondary',t.status!=='completed');
+        editBtn.classList.toggle('ghost',t.status==='completed');
+      }
       syncHeaderMode();
     };
   }
@@ -280,7 +323,13 @@
     .task-mini-chip{display:inline-flex;padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--accent) 8%,var(--card));color:var(--muted);font-size:11px;font-weight:700}
     .work-task.overdue{border-color:color-mix(in srgb,var(--danger) 32%,var(--line))}
     .task-completed-mark{width:44px;height:44px;flex:0 0 44px;border:1px solid color-mix(in srgb,var(--ok) 28%,var(--line));border-radius:14px;display:grid;place-items:center;color:var(--ok);font-size:22px;font-weight:900;background:color-mix(in srgb,var(--ok) 8%,var(--card));pointer-events:none}
-    .task-reopen-secondary{box-shadow:none!important}
+    .task-reopen-secondary{box-shadow:none!important;background:transparent!important;color:var(--accent)!important;border:1px solid var(--line)!important}
+    .task-completed-meta-main{font-size:14px;font-weight:750;color:var(--text);margin-top:7px}
+    .task-completed-meta-secondary{font-size:12px;color:var(--muted);margin-top:5px}
+    .task-completed-subtasks-summary{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:12px 14px;margin:10px 0 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--text);font:inherit;text-align:right}
+    .task-completed-subtasks-summary span:first-child{font-size:13px;font-weight:800}
+    .task-completed-subtasks-action{font-size:12px;font-weight:800;color:var(--accent)}
+    .task-completed-subtasks-collapsed{display:none!important}
     .task-time-group{margin-top:18px}
     .task-time-group:first-child{margin-top:8px}
     .task-time-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 8px;font-size:14px;font-weight:850;color:var(--text)}
