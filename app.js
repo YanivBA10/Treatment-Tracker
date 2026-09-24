@@ -177,7 +177,7 @@ function renderTaskEditorRoute(id=null){
 }
 function renderSubtaskEditor(){const host=document.getElementById('subtasksEditor');host.innerHTML='';(window.taskDraft.subtasks||[]).forEach((st,i)=>{const row=document.createElement('div');row.className='subtask-edit';row.innerHTML=`<input value="${esc(st.title||'')}" placeholder="שלב / תת-משימה"><button class="icon-btn" type="button">×</button>`;row.querySelector('input').oninput=e=>st.title=e.target.value;row.querySelector('button').onclick=()=>{window.taskDraft.subtasks.splice(i,1);renderSubtaskEditor()};host.appendChild(row)})}
 function addSubtask(){window.taskDraft.subtasks||=[];window.taskDraft.subtasks.push({id:uid('subtask'),title:'',done:false});renderSubtaskEditor()}
-function saveTaskEditor(){const t=window.taskDraft;t.title=document.getElementById('workTaskTitle').value.trim();t.description=document.getElementById('workTaskDescription').value.trim();t.dueDate=document.getElementById('workTaskDueDate').value||'';t.reminderDate=document.getElementById('workTaskReminderDate').value||'';t.reminderTime=document.getElementById('workTaskReminderTime').value||'';t.showOnMain=document.getElementById('workTaskShowOnMain').checked;t.subtasks=(t.subtasks||[]).filter(x=>(x.title||'').trim()).map(x=>({...x,title:x.title.trim()}));if(!t.title){toast('צריך לתת שם למשימה.');return}state.tasks||=[];if(t.id){state.tasks[state.tasks.findIndex(x=>x.id===t.id)]=t}else{t.id=uid('worktask');t.createdAt=Date.now();state.tasks.push(t)}save();replaceRoute({route:'main',view:'tasksView'});toast('המשימה נשמרה')}
+function saveTaskEditor(){const t=window.taskDraft;t.title=document.getElementById('workTaskTitle').value.trim();t.description=document.getElementById('workTaskDescription').value.trim();t.dueDate=document.getElementById('workTaskDueDate').value||'';t.reminderDate=document.getElementById('workTaskReminderDate').value||'';t.reminderTime=document.getElementById('workTaskReminderTime').value||'';t.showOnMain=document.getElementById('workTaskShowOnMain').checked;t.subtasks=(t.subtasks||[]).filter(x=>(x.title||'').trim()).map(x=>({...x,title:x.title.trim()}));if(!t.title){toast('צריך לתת שם למשימה.');return}state.tasks||=[];const wasEditing=!!t.id;if(wasEditing){state.tasks[state.tasks.findIndex(x=>x.id===t.id)]=t}else{t.id=uid('worktask');t.createdAt=Date.now();state.tasks.push(t)}save();replaceRoute(wasEditing?{route:'taskDetail',taskId:t.id}:{route:'main',view:'tasksView'});toast('המשימה נשמרה')}
 async function deleteCurrentTask(){const t=window.taskDraft;if(!t?.id)return;const ok=await showConfirm({title:'למחוק את המשימה?',message:`"${t.title}" תימחק לצמיתות.`,confirmText:'מחק לצמיתות',danger:true});if(!ok)return;state.tasks=state.tasks.filter(x=>x.id!==t.id);save();replaceRoute({route:'main',view:'tasksView'});toast('המשימה נמחקה')}
 function setRelativeReminder(minutes){const d=new Date(Date.now()+minutes*60000),dateEl=document.getElementById('reminderDate'),timeEl=document.getElementById('reminderTime');dateEl.value=localDateStr(d);timeEl.value=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;document.getElementById('reminderRepeat').value='once';timeEl.classList.remove('time-flash');void timeEl.offsetWidth;timeEl.classList.add('time-flash')}
 function setCustomRelativeReminder(){const raw=Number(document.getElementById('customRelativeAmount').value||0);if(!raw||raw<1)return;const unit=document.getElementById('customRelativeUnit').value;setRelativeReminder(unit==='hours'?raw*60:raw)}
@@ -215,15 +215,15 @@ async function completeReminder(r){
 function openReminderEditor(id=null){pushRoute({route:'reminderEditor',reminderId:id||null});}
 function renderReminderEditorRoute(id=null){
   showOnly('reminderEditorView');document.getElementById('bottomTabs').classList.add('hidden');
-  const found=id?(state.reminders||[]).find(r=>r.id===id):null;if(id&&!found){replaceRoute({route:'main',view:'activeView'});return}
+  const found=id?(state.reminders||[]).find(r=>r.id===id):null;if(id&&!found){replaceRoute({route:'main',view:'remindersView'});return}
   const r=found?JSON.parse(JSON.stringify(found)):{id:null,title:'',description:'',date:todayStr(),time:'20:00',repeat:'once',notify:true,status:'active',doneDates:{}};
   window.reminderDraft=r;document.getElementById('reminderEditorTitle').textContent=id?'עריכת תזכורת':'תזכורת חדשה';document.getElementById('reminderTitle').value=r.title;document.getElementById('reminderDescription').value=r.description||'';document.getElementById('reminderDate').value=r.date||todayStr();document.getElementById('reminderTime').value=r.time||'20:00';document.getElementById('reminderRepeat').value=r.repeat||'once';document.getElementById('reminderNotify').checked=r.notify!==false;document.getElementById('deleteReminderBtn').classList.toggle('hidden',!id);
 }
 function saveReminderEditor(){
   const r=window.reminderDraft;r.title=document.getElementById('reminderTitle').value.trim();r.description=document.getElementById('reminderDescription').value.trim();r.date=document.getElementById('reminderDate').value||todayStr();r.time=document.getElementById('reminderTime').value||'20:00';r.repeat=document.getElementById('reminderRepeat').value;r.notify=document.getElementById('reminderNotify').checked;
   if(!r.title){toast('צריך לתת שם לתזכורת.');return}
-  state.reminders||=[];if(r.id){const i=state.reminders.findIndex(x=>x.id===r.id);state.reminders[i]=r}else{r.id=uid('reminder');r.createdAt=Date.now();r.status='active';r.doneDates={};state.reminders.push(r)}
-  save();replaceRoute({route:'main',view:'remindersView'});toast('התזכורת נשמרה');
+  state.reminders||=[];const wasEditing=!!r.id;if(wasEditing){const i=state.reminders.findIndex(x=>x.id===r.id);state.reminders[i]=r}else{r.id=uid('reminder');r.createdAt=Date.now();r.status='active';r.doneDates={};state.reminders.push(r)}
+  save();replaceRoute(wasEditing?{route:'reminderDetail',reminderId:r.id}:{route:'main',view:'remindersView'});toast('התזכורת נשמרה');
 }
 async function deleteCurrentReminder(){
   const r=window.reminderDraft;if(!r?.id)return;const ok=await showConfirm({title:'למחוק את התזכורת?',message:`"${r.title}" תימחק לצמיתות.`,confirmText:'מחק לצמיתות',danger:true});if(!ok)return;state.reminders=state.reminders.filter(x=>x.id!==r.id);save();replaceRoute({route:'main',view:'remindersView'});toast('התזכורת נמחקה');
@@ -231,7 +231,7 @@ async function deleteCurrentReminder(){
 function openEditor(id=null){pushRoute({route:'editor',trackerId:id||null});}
 function renderEditorRoute(id=null){
   editingTrackerId=id;currentTrackerId=null;showOnly('editorView');document.getElementById('bottomTabs').classList.add('hidden');
-  const found=id?state.trackers.find(t=>t.id===id):null;if(id&&!found){replaceRoute({route:'main',view:'activeView'});return}
+  const found=id?state.trackers.find(t=>t.id===id):null;if(id&&!found){replaceRoute({route:'main',view:'trackersView'});return}
   const tr=id?JSON.parse(JSON.stringify(found)):{id:null,name:'',startDate:todayStr(),duration:null,openEnded:false,mode:'simple',stages:[{id:uid('stage'),from:1,to:1,tasks:[newTask()]}]};
   window.editorDraft=tr;fillEditor();
 }
@@ -327,7 +327,7 @@ function saveEditor(){
   const err=validateDraft(tr);if(err){toast(err);return}
   if(editingTrackerId){const idx=state.trackers.findIndex(t=>t.id===editingTrackerId),old=state.trackers[idx];tr.id=old.id;tr.done=old.done||{};tr.skipped=old.skipped||{};tr.status=old.status;tr.createdAt=old.createdAt;state.trackers[idx]=tr}
   else{tr.id=uid('tracker');tr.done={};tr.skipped={};tr.status='active';tr.createdAt=Date.now();state.trackers.push(tr)}
-  save();renderMain();goHome();toast('המעקב נשמר')
+  save();renderMain();replaceRoute(editingTrackerId?{route:'detail',trackerId:tr.id,section:'settings'}:{route:'main',view:'trackersView'});toast('המעקב נשמר')
 }
 function showOnly(id){document.querySelectorAll('main').forEach(m=>m.classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
 function renderMainRoute(view='todayView'){currentTrackerId=null;editingTrackerId=null;editingTaskId=null;showOnly(view);document.getElementById('bottomTabs').classList.remove('hidden');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.main===view));const titles={todayView:['ראשי','מה חשוב עכשיו'],trackersView:['מעקבים','תהליכים חוזרים והתקדמות'],tasksView:['משימות','דברים שצריך לסיים'],remindersView:['תזכורות','דברים שצריכים לקפוץ בזמן'],archiveView:['ארכיון','דברים שהושלמו או הועברו לארכיון'],appSettingsView:['הגדרות','מראה, התראות וגיבוי']};const [a,b]=titles[view]||titles.todayView;document.getElementById('appTitle').textContent=a;document.getElementById('appSubtitle').textContent=b;renderMain();}
