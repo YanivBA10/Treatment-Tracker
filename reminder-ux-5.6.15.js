@@ -165,8 +165,9 @@
       edit.textContent='ערוך';
       edit.onclick=()=>directOpenReminderEditor?.(r.id);
       const done=document.createElement('button');
-      done.className='btn';
-      done.textContent=r.repeat==='once'?'סמן כהושלמה':'סמן כהושלמה להיום';
+      const undoToday=doneToday&&r.repeat!=='once';
+      done.className=undoToday?'btn secondary':'btn';
+      done.textContent=r.repeat==='once'?'סמן כהושלמה':(undoToday?'בטל השלמה להיום':'סמן כהושלמה להיום');
       done.onclick=async()=>{await completeReminder(r); if((state.reminders||[]).some(x=>x.id===r.id))renderReminderDetailRoute(r.id);};
       actions.append(edit,done);
     }
