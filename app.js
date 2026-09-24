@@ -168,17 +168,80 @@ function renderTaskDetailRoute(id){
   document.getElementById('taskDetailProgress').textContent=pr.total?`${pr.done}/${pr.total} שלבים הושלמו`:'';
   document.getElementById('taskDetailDoneBtn').textContent=t.status==='completed'?'פתח מחדש':'סמן משימה כהושלמה';document.getElementById('taskDetailDoneBtn').onclick=()=>setWholeTaskDone(t,t.status!=='completed');document.getElementById('taskDetailEditBtn').onclick=()=>openTaskEditor(t.id);
 }
+let editorBaseline=null;
+let restoreEditorHistoryForPrompt=false;
+let allowEditorBackOnce=false;
+
+function visibleEditorView(){
+  for(const id of ['editorView','taskEditorView','reminderEditorView']){
+    const el=document.getElementById(id);
+    if(el&&!el.classList.contains('hidden'))return id;
+  }
+  return '';
+}
+function editorFormSnapshot(viewId=visibleEditorView()){
+  const view=document.getElementById(viewId);
+  if(!view)return '';
+  const fields=[...view.querySelectorAll('input,textarea,select')].map(el=>({
+    tag:el.tagName,
+    type:el.type||'',
+    value:el.value,
+    checked:!!el.checked,
+    disabled:!!el.disabled
+  }));
+  return JSON.stringify({viewId,fields});
+}
+function scheduleEditorBaseline(viewId){
+  queueMicrotask(()=>{
+    const view=document.getElementById(viewId);
+    if(view&&!view.classList.contains('hidden'))editorBaseline=editorFormSnapshot(viewId);
+  });
+}
+function editorHasUnsavedChanges(){
+  const viewId=visibleEditorView();
+  return !!(viewId&&editorBaseline!==null&&editorFormSnapshot(viewId)!==editorBaseline);
+}
+async function confirmDiscardEditorChanges(){
+  if(!editorHasUnsavedChanges())return true;
+  return showConfirm({
+    title:'לצאת בלי לשמור?',
+    message:'יש שינויים שלא נשמרו.',
+    confirmText:'צא בלי לשמור',
+    cancelText:'המשך לערוך',
+    danger:true
+  });
+}
+window.requestEditorBack=async function(){
+  if(await confirmDiscardEditorChanges()){
+    allowEditorBackOnce=true;
+    history.back();
+  }
+};
+
+// Intercept visible Cancel/Back controls only when there are real unsaved changes.
+// Clean forms keep their existing one-tap Back behavior.
+document.addEventListener('click',async e=>{
+  const btn=e.target.closest?.('#cancelEditor,#cancelTaskEditor,#cancelReminderEditor,#depthNavBtn');
+  if(!btn||!visibleEditorView()||!editorHasUnsavedChanges())return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  if(await confirmDiscardEditorChanges()){
+    allowEditorBackOnce=true;
+    history.back();
+  }
+},true);
+
 function openTaskEditor(id=null){pushRoute({route:'taskEditor',taskId:id||null})}
 function renderTaskEditorRoute(id=null){
   showOnly('taskEditorView');document.getElementById('bottomTabs').classList.add('hidden');editingTaskId=id;
   const found=id?(state.tasks||[]).find(t=>t.id===id):null;if(id&&!found){replaceRoute({route:'main',view:'tasksView'});return}
   const t=found?JSON.parse(JSON.stringify(found)):{id:null,title:'',description:'',dueDate:'',reminderDate:'',reminderTime:'',status:'active',subtasks:[],showOnMain:false};window.taskDraft=t;
-  document.getElementById('taskEditorTitle').textContent=id?'עריכת משימה':'משימה חדשה';document.getElementById('workTaskTitle').value=t.title||'';document.getElementById('workTaskDescription').value=t.description||'';document.getElementById('workTaskDueDate').value=t.dueDate||'';document.getElementById('workTaskReminderDate').value=t.reminderDate||'';document.getElementById('workTaskReminderTime').value=t.reminderTime||'';document.getElementById('workTaskShowOnMain').checked=!!t.showOnMain;document.getElementById('deleteTaskBtn').classList.toggle('hidden',!id);renderSubtaskEditor();
+  document.getElementById('taskEditorTitle').textContent=id?'עריכת משימה':'משימה חדשה';document.getElementById('workTaskTitle').value=t.title||'';document.getElementById('workTaskDescription').value=t.description||'';document.getElementById('workTaskDueDate').value=t.dueDate||'';document.getElementById('workTaskReminderDate').value=t.reminderDate||'';document.getElementById('workTaskReminderTime').value=t.reminderTime||'';document.getElementById('workTaskShowOnMain').checked=!!t.showOnMain;document.getElementById('deleteTaskBtn').classList.toggle('hidden',!id);renderSubtaskEditor();scheduleEditorBaseline('taskEditorView');
 }
 function renderSubtaskEditor(){const host=document.getElementById('subtasksEditor');host.innerHTML='';(window.taskDraft.subtasks||[]).forEach((st,i)=>{const row=document.createElement('div');row.className='subtask-edit';row.innerHTML=`<input value="${esc(st.title||'')}" placeholder="שלב / תת-משימה"><button class="icon-btn" type="button">×</button>`;row.querySelector('input').oninput=e=>st.title=e.target.value;row.querySelector('button').onclick=()=>{window.taskDraft.subtasks.splice(i,1);renderSubtaskEditor()};host.appendChild(row)})}
 function addSubtask(){window.taskDraft.subtasks||=[];window.taskDraft.subtasks.push({id:uid('subtask'),title:'',done:false});renderSubtaskEditor()}
-function saveTaskEditor(){const t=window.taskDraft;t.title=document.getElementById('workTaskTitle').value.trim();t.description=document.getElementById('workTaskDescription').value.trim();t.dueDate=document.getElementById('workTaskDueDate').value||'';t.reminderDate=document.getElementById('workTaskReminderDate').value||'';t.reminderTime=document.getElementById('workTaskReminderTime').value||'';t.showOnMain=document.getElementById('workTaskShowOnMain').checked;t.subtasks=(t.subtasks||[]).filter(x=>(x.title||'').trim()).map(x=>({...x,title:x.title.trim()}));if(!t.title){toast('צריך לתת שם למשימה.');return}state.tasks||=[];const wasEditing=!!t.id;if(wasEditing){state.tasks[state.tasks.findIndex(x=>x.id===t.id)]=t}else{t.id=uid('worktask');t.createdAt=Date.now();state.tasks.push(t)}save();replaceRoute(wasEditing?{route:'taskDetail',taskId:t.id}:{route:'main',view:'tasksView'});toast('המשימה נשמרה')}
-async function deleteCurrentTask(){const t=window.taskDraft;if(!t?.id)return;const ok=await showConfirm({title:'למחוק את המשימה?',message:`"${t.title}" תימחק לצמיתות.`,confirmText:'מחק לצמיתות',danger:true});if(!ok)return;state.tasks=state.tasks.filter(x=>x.id!==t.id);save();replaceRoute({route:'main',view:'tasksView'});toast('המשימה נמחקה')}
+function saveTaskEditor(){const t=window.taskDraft;t.title=document.getElementById('workTaskTitle').value.trim();t.description=document.getElementById('workTaskDescription').value.trim();t.dueDate=document.getElementById('workTaskDueDate').value||'';t.reminderDate=document.getElementById('workTaskReminderDate').value||'';t.reminderTime=document.getElementById('workTaskReminderTime').value||'';t.showOnMain=document.getElementById('workTaskShowOnMain').checked;t.subtasks=(t.subtasks||[]).filter(x=>(x.title||'').trim()).map(x=>({...x,title:x.title.trim()}));if(!t.title){toast('צריך לתת שם למשימה.');return}state.tasks||=[];const wasEditing=!!t.id;if(wasEditing){state.tasks[state.tasks.findIndex(x=>x.id===t.id)]=t}else{t.id=uid('worktask');t.createdAt=Date.now();state.tasks.push(t)}save();editorBaseline=null;replaceRoute(wasEditing?{route:'taskDetail',taskId:t.id}:{route:'main',view:'tasksView'});toast('המשימה נשמרה')}
+async function deleteCurrentTask(){const t=window.taskDraft;if(!t?.id)return;const ok=await showConfirm({title:'למחוק את המשימה?',message:`"${t.title}" תימחק לצמיתות.`,confirmText:'מחק לצמיתות',danger:true});if(!ok)return;state.tasks=state.tasks.filter(x=>x.id!==t.id);save();editorBaseline=null;replaceRoute({route:'main',view:'tasksView'});toast('המשימה נמחקה')}
 function setRelativeReminder(minutes){const d=new Date(Date.now()+minutes*60000),dateEl=document.getElementById('reminderDate'),timeEl=document.getElementById('reminderTime');dateEl.value=localDateStr(d);timeEl.value=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;document.getElementById('reminderRepeat').value='once';timeEl.classList.remove('time-flash');void timeEl.offsetWidth;timeEl.classList.add('time-flash')}
 function setCustomRelativeReminder(){const raw=Number(document.getElementById('customRelativeAmount').value||0);if(!raw||raw<1)return;const unit=document.getElementById('customRelativeUnit').value;setRelativeReminder(unit==='hours'?raw*60:raw)}
 function toggleCustomRelative(){document.getElementById('relativeCustomWrap')?.classList.toggle('hidden')}
@@ -217,23 +280,23 @@ function renderReminderEditorRoute(id=null){
   showOnly('reminderEditorView');document.getElementById('bottomTabs').classList.add('hidden');
   const found=id?(state.reminders||[]).find(r=>r.id===id):null;if(id&&!found){replaceRoute({route:'main',view:'remindersView'});return}
   const r=found?JSON.parse(JSON.stringify(found)):{id:null,title:'',description:'',date:todayStr(),time:'20:00',repeat:'once',notify:true,status:'active',doneDates:{}};
-  window.reminderDraft=r;document.getElementById('reminderEditorTitle').textContent=id?'עריכת תזכורת':'תזכורת חדשה';document.getElementById('reminderTitle').value=r.title;document.getElementById('reminderDescription').value=r.description||'';document.getElementById('reminderDate').value=r.date||todayStr();document.getElementById('reminderTime').value=r.time||'20:00';document.getElementById('reminderRepeat').value=r.repeat||'once';document.getElementById('reminderNotify').checked=r.notify!==false;document.getElementById('deleteReminderBtn').classList.toggle('hidden',!id);
+  window.reminderDraft=r;document.getElementById('reminderEditorTitle').textContent=id?'עריכת תזכורת':'תזכורת חדשה';document.getElementById('reminderTitle').value=r.title;document.getElementById('reminderDescription').value=r.description||'';document.getElementById('reminderDate').value=r.date||todayStr();document.getElementById('reminderTime').value=r.time||'20:00';document.getElementById('reminderRepeat').value=r.repeat||'once';document.getElementById('reminderNotify').checked=r.notify!==false;document.getElementById('deleteReminderBtn').classList.toggle('hidden',!id);scheduleEditorBaseline('reminderEditorView');
 }
 function saveReminderEditor(){
   const r=window.reminderDraft;r.title=document.getElementById('reminderTitle').value.trim();r.description=document.getElementById('reminderDescription').value.trim();r.date=document.getElementById('reminderDate').value||todayStr();r.time=document.getElementById('reminderTime').value||'20:00';r.repeat=document.getElementById('reminderRepeat').value;r.notify=document.getElementById('reminderNotify').checked;
   if(!r.title){toast('צריך לתת שם לתזכורת.');return}
   state.reminders||=[];const wasEditing=!!r.id;if(wasEditing){const i=state.reminders.findIndex(x=>x.id===r.id);state.reminders[i]=r}else{r.id=uid('reminder');r.createdAt=Date.now();r.status='active';r.doneDates={};state.reminders.push(r)}
-  save();replaceRoute(wasEditing?{route:'reminderDetail',reminderId:r.id}:{route:'main',view:'remindersView'});toast('התזכורת נשמרה');
+  save();editorBaseline=null;replaceRoute(wasEditing?{route:'reminderDetail',reminderId:r.id}:{route:'main',view:'remindersView'});toast('התזכורת נשמרה');
 }
 async function deleteCurrentReminder(){
-  const r=window.reminderDraft;if(!r?.id)return;const ok=await showConfirm({title:'למחוק את התזכורת?',message:`"${r.title}" תימחק לצמיתות.`,confirmText:'מחק לצמיתות',danger:true});if(!ok)return;state.reminders=state.reminders.filter(x=>x.id!==r.id);save();replaceRoute({route:'main',view:'remindersView'});toast('התזכורת נמחקה');
+  const r=window.reminderDraft;if(!r?.id)return;const ok=await showConfirm({title:'למחוק את התזכורת?',message:`"${r.title}" תימחק לצמיתות.`,confirmText:'מחק לצמיתות',danger:true});if(!ok)return;state.reminders=state.reminders.filter(x=>x.id!==r.id);save();editorBaseline=null;replaceRoute({route:'main',view:'remindersView'});toast('התזכורת נמחקה');
 }
 function openEditor(id=null){pushRoute({route:'editor',trackerId:id||null});}
 function renderEditorRoute(id=null){
   editingTrackerId=id;currentTrackerId=null;showOnly('editorView');document.getElementById('bottomTabs').classList.add('hidden');
   const found=id?state.trackers.find(t=>t.id===id):null;if(id&&!found){replaceRoute({route:'main',view:'trackersView'});return}
   const tr=id?JSON.parse(JSON.stringify(found)):{id:null,name:'',startDate:todayStr(),duration:null,openEnded:false,mode:'simple',stages:[{id:uid('stage'),from:1,to:1,tasks:[newTask()]}]};
-  window.editorDraft=tr;fillEditor();
+  window.editorDraft=tr;fillEditor();scheduleEditorBaseline('editorView');
 }
 function newTask(){return{id:uid('task'),label:'',description:'',time:'20:00',freq:'daily',everyN:2,weekdays:[0,1,2,3,4,5,6],notify:true,periodLabel:''}}
 function fillEditor(){
@@ -327,7 +390,7 @@ function saveEditor(){
   const err=validateDraft(tr);if(err){toast(err);return}
   if(editingTrackerId){const idx=state.trackers.findIndex(t=>t.id===editingTrackerId),old=state.trackers[idx];tr.id=old.id;tr.done=old.done||{};tr.skipped=old.skipped||{};tr.status=old.status;tr.createdAt=old.createdAt;state.trackers[idx]=tr}
   else{tr.id=uid('tracker');tr.done={};tr.skipped={};tr.status='active';tr.createdAt=Date.now();state.trackers.push(tr)}
-  save();renderMain();replaceRoute(editingTrackerId?{route:'detail',trackerId:tr.id,section:'settings'}:{route:'main',view:'trackersView'});toast('המעקב נשמר')
+  save();editorBaseline=null;renderMain();replaceRoute(editingTrackerId?{route:'detail',trackerId:tr.id,section:'settings'}:{route:'main',view:'trackersView'});toast('המעקב נשמר')
 }
 function showOnly(id){document.querySelectorAll('main').forEach(m=>m.classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
 function renderMainRoute(view='todayView'){currentTrackerId=null;editingTrackerId=null;editingTaskId=null;showOnly(view);document.getElementById('bottomTabs').classList.remove('hidden');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.main===view));const titles={todayView:['ראשי','מה חשוב עכשיו'],trackersView:['מעקבים','תהליכים חוזרים והתקדמות'],tasksView:['משימות','דברים שצריך לסיים'],remindersView:['תזכורות','דברים שצריכים לקפוץ בזמן'],archiveView:['ארכיון','דברים שהושלמו או הועברו לארכיון'],appSettingsView:['הגדרות','מראה, התראות וגיבוי']};const [a,b]=titles[view]||titles.todayView;document.getElementById('appTitle').textContent=a;document.getElementById('appSubtitle').textContent=b;renderMain();}
@@ -339,6 +402,18 @@ function setupNavigation(){if(!history.state||!history.state.app){history.replac
 let lastExitBackAt=0;
 window.addEventListener('popstate',e=>{
   if(isExiting)return;
+
+  if(restoreEditorHistoryForPrompt){
+    restoreEditorHistoryForPrompt=false;
+    (async()=>{
+      const ok=await confirmDiscardEditorChanges();
+      if(ok){
+        allowEditorBackOnce=true;
+        history.back();
+      }
+    })();
+    return;
+  }
 
   // Overlays are the top-most navigation layer. Android Back must dismiss the
   // visible overlay without moving the page underneath it.
@@ -368,7 +443,22 @@ window.addEventListener('popstate',e=>{
   }
 
   const dest=e.state;
-  if(dest&&dest.app&&dest.route!=='exit'){applyRoute(dest);return}
+
+  // Hardware Back from an editor: protect only actual changes. We restore the
+  // current history entry before showing the prompt so the page underneath
+  // never changes or flashes while the decision is pending.
+  if(visibleEditorView()&&!allowEditorBackOnce&&editorHasUnsavedChanges()){
+    restoreEditorHistoryForPrompt=true;
+    history.forward();
+    return;
+  }
+  if(allowEditorBackOnce)allowEditorBackOnce=false;
+
+  if(dest&&dest.app&&dest.route!=='exit'){
+    editorBaseline=null;
+    applyRoute(dest);
+    return;
+  }
 
   // On a top-level tab, Back should return to Home first. Tab switching uses
   // replaceState so it does not build a long browser history, but Home still
