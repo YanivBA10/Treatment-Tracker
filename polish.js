@@ -1,4 +1,4 @@
-/* Personal Tracker visual + UX polish — 5.6.28 */
+/* Personal Tracker visual + UX polish — 5.6.34 */
 (()=>{
   'use strict';
 
@@ -178,6 +178,63 @@
   const relWrap=document.getElementById('relativeCustomWrap');
   if(relWrap)relWrap.classList.add('polish-relative-custom');
 
+  // Keep the primary save action one tap away in long editors.
+  // Destructive actions stay in the form body so they are deliberate, not persistent.
+  const editorSaveMap={
+    editorView:{buttonId:'saveTrackerBtn',label:'שמור מעקב'},
+    reminderEditorView:{buttonId:'saveReminderBtn',label:'שמור תזכורת'},
+    taskEditorView:{buttonId:'saveTaskBtn',label:'שמור משימה'}
+  };
+
+  function ensureStickyEditorSave(){
+    let dock=document.getElementById('editorStickySaveDock');
+    if(!dock){
+      dock=document.createElement('div');
+      dock.id='editorStickySaveDock';
+      dock.className='editor-sticky-save hidden';
+      dock.innerHTML='<button type="button" class="btn block" id="editorStickySaveBtn"></button>';
+      document.body.appendChild(dock);
+      dock.querySelector('button').onclick=()=>{
+        const targetId=dock.dataset.target;
+        if(targetId)document.getElementById(targetId)?.click();
+      };
+    }
+    return dock;
+  }
+
+  function syncStickyEditorSave(){
+    const dock=ensureStickyEditorSave();
+    const visible=Object.keys(editorSaveMap).find(id=>{
+      const el=document.getElementById(id);
+      return el&&!el.classList.contains('hidden');
+    });
+    if(!visible){
+      dock.classList.add('hidden');
+      dock.dataset.target='';
+      return;
+    }
+    const cfg=editorSaveMap[visible];
+    dock.dataset.target=cfg.buttonId;
+    dock.querySelector('button').textContent=cfg.label;
+    dock.classList.remove('hidden');
+  }
+
+  // showOnly is the central view switcher; wrap it once here and also observe
+  // class changes as a safety net for later UX layers.
+  if(typeof window.showOnly==='function'){
+    const stickyOriginalShowOnly=window.showOnly;
+    window.showOnly=function(id){
+      stickyOriginalShowOnly(id);
+      requestAnimationFrame(syncStickyEditorSave);
+    };
+  }
+  const editorVisibilityObserver=new MutationObserver(syncStickyEditorSave);
+  ['editorView','reminderEditorView','taskEditorView'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)editorVisibilityObserver.observe(el,{attributes:true,attributeFilter:['class']});
+  });
+  syncStickyEditorSave();
+
   const css=document.createElement('style');
   css.textContent=`
     :root{--muted:#596579;--home-card-radius:26px}
@@ -260,6 +317,36 @@
     .polish-relative-custom{margin-top:8px;padding-top:10px;border-top:1px solid var(--line)}
     #customRelativeToggleBtn{margin-top:6px}
     .quick-time{margin-bottom:10px}
+
+    /* Long editor actions */
+    #editorView #saveTrackerBtn,
+    #reminderEditorView #saveReminderBtn,
+    #taskEditorView #saveTaskBtn{display:none!important}
+    #editorView .card,
+    #reminderEditorView .card,
+    #taskEditorView .card{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
+    .editor-sticky-save{
+      position:fixed;
+      z-index:85;
+      inset-inline:50% auto;
+      transform:translateX(50%);
+      bottom:calc(12px + env(safe-area-inset-bottom));
+      width:min(calc(100vw - 28px),588px);
+      padding:7px;
+      border:1px solid color-mix(in srgb,var(--line) 82%,transparent);
+      border-radius:18px;
+      background:color-mix(in srgb,var(--card) 90%,transparent);
+      backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
+      box-shadow:0 12px 34px rgba(25,43,72,.16)
+    }
+    .editor-sticky-save .btn{
+      margin:0!important;
+      min-height:52px;
+      border-radius:14px;
+      font-size:17px;
+      box-shadow:0 8px 22px rgba(53,105,232,.18)
+    }
 
     @media(max-width:480px){
       .app{padding-inline:14px}
