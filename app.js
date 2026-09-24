@@ -363,6 +363,17 @@ window.addEventListener('popstate',e=>{
 
   const dest=e.state;
   if(dest&&dest.app&&dest.route!=='exit'){applyRoute(dest);return}
+
+  // On a top-level tab, Back should return to Home first. Tab switching uses
+  // replaceState so it does not build a long browser history, but Home still
+  // acts as the app's navigation root before the exit gesture.
+  if(renderedRoute?.route==='main'&&renderedRoute.view&&renderedRoute.view!=='todayView'){
+    const home={app:true,route:'main',view:'todayView',depth:1};
+    history.pushState(home,'');
+    applyRoute(home);
+    return;
+  }
+
   const now=Date.now();
   if(now-lastExitBackAt<2200){isExiting=true;history.go(-1);return}
   lastExitBackAt=now;
