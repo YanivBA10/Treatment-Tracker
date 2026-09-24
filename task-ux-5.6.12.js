@@ -1,4 +1,4 @@
-/* Personal Tracker — tasks + depth navigation polish 5.6.25 */
+/* Personal Tracker — tasks + depth navigation polish 5.6.26 */
 (()=>{
   'use strict';
 
@@ -84,8 +84,12 @@
       const el=document.createElement('div');
       const due=taskDueState(t),m=taskMetaParts(t);
       el.className='work-task'+(t.status==='completed'?' completed':'')+(due==='overdue'?' overdue':'');
-      el.innerHTML=`<div class="reminder-main"><div class="grow"><div class="task-title-line"><div class="tracker-name">${esc(t.title)}</div>${statusChipForTask(t)}</div>${!compact&&t.description?`<div class="reminder-description">${esc(t.description)}</div>`:''}${m.primary.length?`<div class="task-meta task-primary-meta">${m.primary.map(x=>`<span class="task-meta-item">${x}</span>`).join('<span class="task-meta-sep">•</span>')}</div>`:''}${m.secondary.length?`<div class="task-secondary-meta">${m.secondary.map(x=>`<span class="task-mini-chip">${x}</span>`).join('')}</div>`:''}</div><button class="check reminder-check" aria-label="סימון בוצע">${t.status==='completed'?'✓':''}</button></div>`;
-      el.querySelector('.reminder-check').onclick=e=>{e.stopPropagation();setWholeTaskDone(t,t.status!=='completed')};
+      const statusControl=t.status==='completed'
+        ?'<span class="task-completed-mark" aria-label="הושלמה">✓</span>'
+        :'<button class="check reminder-check" aria-label="סימון בוצע"></button>';
+      el.innerHTML=`<div class="reminder-main"><div class="grow"><div class="task-title-line"><div class="tracker-name">${esc(t.title)}</div>${statusChipForTask(t)}</div>${!compact&&t.description?`<div class="reminder-description">${esc(t.description)}</div>`:''}${m.primary.length?`<div class="task-meta task-primary-meta">${m.primary.map(x=>`<span class="task-meta-item">${x}</span>`).join('<span class="task-meta-sep">•</span>')}</div>`:''}${m.secondary.length?`<div class="task-secondary-meta">${m.secondary.map(x=>`<span class="task-mini-chip">${x}</span>`).join('')}</div>`:''}</div>${statusControl}</div>`;
+      const check=el.querySelector('.reminder-check');
+      if(check)check.onclick=e=>{e.stopPropagation();setWholeTaskDone(t,true)};
       el.onclick=()=>openTaskDetail(t.id);
       return el;
     };
@@ -179,19 +183,32 @@
         const due=taskDueState(t);
         if(t.dueDate)parts.push(due==='today'?'יעד היום':`יעד ${dateTimeHtml(t.dueDate,'')}`);
         if(t.reminderDate&&t.reminderTime)parts.push(`🔔 ${dateTimeHtml(t.reminderDate,t.reminderTime)}`);
+        if(t.status==='completed'&&t.completedAt){
+          const d=new Date(t.completedAt);
+          const completedDate=`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(-2)}`;
+          const completedTime=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+          parts.push(`הושלמה <span class="task-date-time" dir="ltr">${completedDate} · ${completedTime}</span>`);
+        }
         meta.innerHTML=parts.join('<span class="task-detail-sep">•</span>');
         meta.classList.toggle('hidden',!parts.length);
       }
       const host=document.getElementById('taskDetailSubtasks');
       const section=host?.closest('.card');
       const pr=taskProgress(t);
-      if(section&&pr.total){
+      if(section&&pr.total&&t.status!=='completed'){
         let prog=section.querySelector('.task-detail-progress-visual');
         if(!prog){prog=document.createElement('div');prog.className='task-detail-progress-visual';section.querySelector('.section-title')?.insertAdjacentElement('afterend',prog);}
         const pct=Math.round(pr.done/pr.total*100);
         prog.innerHTML=`<div class="task-progress-head"><span>${pr.done} מתוך ${pr.total} שלבים</span></div><div class="task-progress-bar"><div style="width:${pct}%"></div></div>`;
       }else section?.querySelector('.task-detail-progress-visual')?.remove();
       const old=document.getElementById('taskDetailProgress');if(old)old.classList.add('hidden');
+      const doneBtn=document.getElementById('taskDetailDoneBtn');
+      const editBtn=document.getElementById('taskDetailEditBtn');
+      if(doneBtn){
+        doneBtn.classList.toggle('secondary',t.status==='completed');
+        doneBtn.classList.toggle('task-reopen-secondary',t.status==='completed');
+      }
+      if(editBtn)editBtn.classList.toggle('ghost',t.status==='completed');
       syncHeaderMode();
     };
   }
@@ -262,6 +279,8 @@
     .task-secondary-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
     .task-mini-chip{display:inline-flex;padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--accent) 8%,var(--card));color:var(--muted);font-size:11px;font-weight:700}
     .work-task.overdue{border-color:color-mix(in srgb,var(--danger) 32%,var(--line))}
+    .task-completed-mark{width:44px;height:44px;flex:0 0 44px;border:1px solid color-mix(in srgb,var(--ok) 28%,var(--line));border-radius:14px;display:grid;place-items:center;color:var(--ok);font-size:22px;font-weight:900;background:color-mix(in srgb,var(--ok) 8%,var(--card));pointer-events:none}
+    .task-reopen-secondary{box-shadow:none!important}
     .task-time-group{margin-top:18px}
     .task-time-group:first-child{margin-top:8px}
     .task-time-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 8px;font-size:14px;font-weight:850;color:var(--text)}
