@@ -342,6 +342,12 @@ window.addEventListener('popstate',e=>{
 
   // Overlays are the top-most navigation layer. Android Back must dismiss the
   // visible overlay without moving the page underneath it.
+  const toolsMenu=document.getElementById('toolsMenu');
+  if(toolsMenu&&!toolsMenu.classList.contains('hidden')){
+    toolsMenu.classList.add('hidden');
+    setTimeout(()=>history.forward(),0);
+    return;
+  }
   const confirmModal=document.getElementById('modalBackdrop');
   if(confirmModal&&!confirmModal.classList.contains('hidden')){
     document.getElementById('modalCancel')?.click();
