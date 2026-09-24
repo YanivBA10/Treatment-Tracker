@@ -1,4 +1,4 @@
-/* Personal Tracker visual + UX polish — 5.6.1 */
+/* Personal Tracker visual + UX polish — 5.6.26 */
 (()=>{
   'use strict';
 
@@ -147,6 +147,29 @@
     tools.appendChild(shareBtn);
   }
 
+  if(tools&&!document.getElementById('headerQuickActions')){
+    const wrap=document.createElement('div');
+    wrap.id='headerQuickActions';
+    wrap.className='header-quick-actions';
+    const icon=(kind)=>{
+      if(kind==='settings')return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-3v-.08A1.7 1.7 0 0 0 10.68 18.36a1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7.02 15a1.7 1.7 0 0 0-1.56-1.03H5v-3h.46A1.7 1.7 0 0 0 7.02 9.94a1.7 1.7 0 0 0-.34-1.88L6.62 8l2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 11.71 4.7V4h3v.7a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 8l-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.96 11H21v3h-.04A1.7 1.7 0 0 0 19.4 15Z"></path></svg>';
+      if(kind==='archive')return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4z"></path><path d="M3 4h18v3H3z"></path><path d="M9 11h6"></path></svg>';
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"></circle><circle cx="6" cy="12" r="2.5"></circle><circle cx="18" cy="19" r="2.5"></circle><path d="m8.2 10.8 7.6-4.6M8.2 13.2l7.6 4.6"></path></svg>';
+    };
+    [
+      ['headerSettingsBtn','settings','הגדרות',()=>document.getElementById('toolsSettingsBtn')?.click()],
+      ['headerArchiveBtn','archive','ארכיון',()=>document.getElementById('toolsArchiveBtn')?.click()],
+      ['headerShareBtn','share','שיתוף האפליקציה',()=>document.getElementById('toolsShareBtn')?.click()]
+    ].forEach(([id,kind,label,fn])=>{
+      const b=document.createElement('button');
+      b.type='button';b.id=id;b.className='header-quick-action';b.setAttribute('aria-label',label);b.title=label;
+      b.innerHTML=icon(kind);b.onclick=fn;wrap.appendChild(b);
+    });
+    tools.prepend(wrap);
+    toolsBtn?.classList.add('quick-actions-replaced');
+    tools.classList.add('quick-actions-mode');
+  }
+
   const customBtn=document.getElementById('customRelativeToggleBtn');
   if(customBtn){customBtn.textContent='זמן אחר';customBtn.setAttribute('aria-label','קביעת זמן יחסי אחר');}
   const relWrap=document.getElementById('relativeCustomWrap');
@@ -166,6 +189,15 @@
     .header-brand .subtitle{font-size:14px;color:var(--muted);margin-top:7px}
     .appmark.appmark-image{width:40px;height:40px;flex:0 0 40px;padding:0;overflow:hidden;background:transparent;border-radius:13px;box-shadow:0 7px 18px rgba(53,105,232,.14)}
     .appmark.appmark-image img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+
+    .tools-wrap{display:flex;align-items:center}
+    .quick-actions-replaced{display:none!important}
+    .tools-menu.quick-actions-mode{position:static;display:block!important;min-width:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+    .tools-menu.quick-actions-mode>button{display:none!important}
+    .header-quick-actions{display:flex;align-items:center;gap:6px;direction:rtl}
+    .header-quick-action{width:34px;height:34px;border:1px solid var(--line);border-radius:11px;background:color-mix(in srgb,var(--card) 88%,transparent);color:var(--muted);display:grid;place-items:center;padding:0}
+    .header-quick-action:active{background:var(--surface);transform:translateY(1px)}
+    .header-quick-action svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
     .app>header>.row{direction:rtl;flex:0 0 auto}
     .tools-btn{width:38px;height:38px;border-radius:13px;background:color-mix(in srgb,var(--card) 96%,transparent);box-shadow:var(--shadow-soft);font-size:18px}
     #toolsMenu{z-index:70;min-width:190px;padding:8px;border-radius:18px;box-shadow:0 18px 46px rgba(25,43,72,.16)}
