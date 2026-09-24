@@ -81,7 +81,8 @@
      Past actions can be explicitly acknowledged as "לא בוצע" without being marked done. */
   renderDetailHistory=function(tr){
     const box=document.getElementById('detailHistory');
-    box.innerHTML='<div class="card"><div class="section-title">היסטוריה</div><div class="small history-hint">לחץ על יום כדי לעדכן את הפעולות שלו.</div><div id="historyRows"></div></div>';
+    const archived=tr.status==='archived';
+    box.innerHTML=`<div class="card"><div class="section-title">היסטוריה</div><div class="small history-hint">${archived?'היסטוריית המעקב נשמרת לקריאה בלבד.':'לחץ על יום כדי לעדכן את הפעולות שלו.'}</div><div id="historyRows"></div></div>`;
     const rows=box.querySelector('#historyRows');
     const today=trackerDay(tr);
     const max=today<1?0:(tr.openEnded?today:Math.min(Number(tr.duration||0),today));
@@ -95,7 +96,7 @@
       const skipped=ts.filter(t=>typeof isSkipped==='function'&&isSkipped(tr,d,t.id)).length;
       const unresolved=Math.max(0,ts.length-done-skipped);
       const date=parseDate(tr.startDate);date.setDate(date.getDate()+d-1);
-      const row=document.createElement('div');row.className='history-day';
+      const row=document.createElement('div');row.className='history-day'+(archived?' history-day-readonly':'');
       let txt=d===today?`היום · ${done}/${ts.length}`:`${done}/${ts.length}`,cls='';
       if(d<today&&ts.length){
         if(done===ts.length){txt='הושלם';cls='ok'}
@@ -103,7 +104,7 @@
         else{txt=`${done}/${ts.length} · ${unresolved} לבדיקה`;cls='miss'}
       }
       row.innerHTML=`<div><strong>יום ${d}</strong><div class="task-meta">${fmtDate(date,true)}</div></div><div class="status ${cls}">${txt}</div>`;
-      row.onclick=()=>openHistoryEditor(tr,d);
+      if(!archived)row.onclick=()=>openHistoryEditor(tr,d);
       rows.appendChild(row);
     }
   };
@@ -130,6 +131,7 @@
     .history-choice.skipped-choice.selected{background:color-mix(in srgb,var(--warn) 14%,var(--card));color:var(--warn)}
     .history-choice:active{background:var(--soft)}
     .status.acknowledged{background:color-mix(in srgb,var(--warn) 10%,var(--card));color:var(--warn)}
+    .history-day-readonly{cursor:default!important}
     @media(max-width:430px){
       .history-modal-tasks{padding-left:11px!important;padding-bottom:20px}
       .history-modal .task.history-task{align-items:stretch;flex-direction:column;padding:10px 11px}
