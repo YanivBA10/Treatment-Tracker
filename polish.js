@@ -1,4 +1,4 @@
-/* Personal Tracker visual + UX polish — 5.6.34 */
+/* Personal Tracker visual + UX polish — 5.6.37 */
 (()=>{
   'use strict';
 
@@ -243,7 +243,9 @@
     :root{--muted:#596579;--home-card-radius:26px}
     html[data-theme="dark"]{--muted:#b1bac9}
     body{background:radial-gradient(circle at 82% -8%,color-mix(in srgb,var(--accent) 12%,transparent),transparent 34%),var(--bg)}
-    .app{padding-inline:18px}
+    .app{padding-inline:18px;padding-bottom:calc(156px + env(safe-area-inset-bottom))}
+    #editorView,#reminderEditorView,#taskEditorView{padding-bottom:calc(178px + env(safe-area-inset-bottom))}
+    #appSettingsView,#archiveView{padding-bottom:calc(54px + env(safe-area-inset-bottom))}
 
     /* Header — slightly calmer than 5.6.0 */
     .app>header{direction:rtl;align-items:flex-start;margin-bottom:30px;padding-top:7px;gap:16px}
