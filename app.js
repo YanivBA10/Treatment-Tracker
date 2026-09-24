@@ -132,13 +132,14 @@ function taskCard(t,compact=false){
 }
 function setWholeTaskDone(t,done){
   t.status=done?'completed':'active';t.completedAt=done?Date.now():null;
+  if(done)t.snoozedUntil=null;
   if((t.subtasks||[]).length)t.subtasks.forEach(st=>st.done=done);
   save();renderMain();if(renderedRoute?.route==='taskDetail')renderTaskDetailRoute(t.id);toast(done?'המשימה הושלמה':'המשימה נפתחה מחדש');
 }
 function toggleSubtask(t,subId){
   const st=(t.subtasks||[]).find(x=>x.id===subId);if(!st)return;st.done=!st.done;
   const all=(t.subtasks||[]).length>0&&(t.subtasks||[]).every(x=>x.done);
-  if(all){t.status='completed';t.completedAt=Date.now()}else if(t.status==='completed'){t.status='active';t.completedAt=null}
+  if(all){t.status='completed';t.completedAt=Date.now();t.snoozedUntil=null}else if(t.status==='completed'){t.status='active';t.completedAt=null}
   save();renderMain();renderTaskDetailRoute(t.id);
 }
 function renderTasksList(){
@@ -285,8 +286,8 @@ function reminderCard(r,completed=false){
   el.onclick=()=>openReminderEditor(r.id);return el;
 }
 async function completeReminder(r){
-  if(r.repeat==='once'){r.status='completed';r.completedAt=Date.now();}
-  else{r.doneDates||={};r.doneDates[todayStr()]=!r.doneDates[todayStr()];}
+  if(r.repeat==='once'){r.status='completed';r.completedAt=Date.now();r.snoozedUntil=null}
+  else{r.doneDates||={};r.doneDates[todayStr()]=!r.doneDates[todayStr()];if(r.doneDates[todayStr()])r.snoozedUntil=null}
   save();renderMain();toast(r.repeat==='once'?'התזכורת הועברה להושלמו':(reminderDoneToday(r)?'סומן כבוצע להיום':'הסימון בוטל'));
 }
 function openReminderEditor(id=null){pushRoute({route:'reminderEditor',reminderId:id||null});}
@@ -535,13 +536,13 @@ function applyNotificationActionLocally(a){
   if(a.kind==='reminder'){
     const r=state.reminders.find(x=>x.id===a.reminderId);if(!r)return false;
     if(a.action==='done'){
-      if((r.repeat||'once')==='once'){r.status='completed';r.completedAt=a.at||Date.now();r.completionReason='done'}
-      else{r.doneDates||={};r.doneDates[a.dateKey||todayStr()]=true}
+      if((r.repeat||'once')==='once'){r.status='completed';r.completedAt=a.at||Date.now();r.completionReason='done';r.snoozedUntil=null}
+      else{r.doneDates||={};r.doneDates[a.dateKey||todayStr()]=true;r.snoozedUntil=null}
       return true;
     }
     if(a.action==='cancel'){
-      if((r.repeat||'once')==='once'){r.status='completed';r.completedAt=a.at||Date.now();r.completionReason='cancelled'}
-      else{const k=a.dateKey||todayStr();r.doneDates||={};r.doneDates[k]=true;r.skippedDates||={};r.skippedDates[k]=true}
+      if((r.repeat||'once')==='once'){r.status='completed';r.completedAt=a.at||Date.now();r.completionReason='cancelled';r.snoozedUntil=null}
+      else{const k=a.dateKey||todayStr();r.doneDates||={};r.doneDates[k]=true;r.skippedDates||={};r.skippedDates[k]=true;r.snoozedUntil=null}
       return true;
     }
     if(a.action==='snooze'){r.snoozedUntil=Number(a.snoozedUntil)||((Number(a.at)||Date.now())+3600000);return true;}
@@ -549,7 +550,7 @@ function applyNotificationActionLocally(a){
   }
   if(a.kind==='task'){
     const t=state.tasks.find(x=>x.id===a.taskId);if(!t)return false;
-    if(a.action==='done'){t.status='completed';t.completedAt=a.at||Date.now();for(const st of (t.subtasks||[]))st.done=true;return true}
+    if(a.action==='done'){t.status='completed';t.completedAt=a.at||Date.now();t.snoozedUntil=null;for(const st of (t.subtasks||[]))st.done=true;return true}
     if(a.action==='cancel'){t.reminderDate='';t.reminderTime='';return true}
     if(a.action==='snooze'){t.snoozedUntil=Number(a.snoozedUntil)||((Number(a.at)||Date.now())+3600000);return true}
     return false;
