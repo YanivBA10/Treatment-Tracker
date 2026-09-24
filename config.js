@@ -20,7 +20,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     'ui-5.6.4.js?v=5.6.23',
     'tracker-ux-5.6.8.js?v=5.6.12',
     'task-ux-5.6.12.js?v=5.6.28',
-    'reminder-ux-5.6.15.js?v=5.6.19'
+    'reminder-ux-5.6.15.js?v=5.6.20'
   ];
 
   const load=(src)=>new Promise((resolve,reject)=>{
