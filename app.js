@@ -21,7 +21,7 @@ function parseDate(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m
 function fmtDate(d,short=false){return new Intl.DateTimeFormat('he-IL',short?{day:'2-digit',month:'2-digit'}:{weekday:'long',day:'numeric',month:'long'}).format(d)}
 function save(){localStorage.setItem(APP_KEY,JSON.stringify(state));schedulePushSync()}
 function toast(msg){const e=document.getElementById('toast');e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),1800)}
-function deviceId(){let id=localStorage.getItem(DEVICE_KEY);if(!id){id=uid('device');localStorage.setItem(DEVICE_KEY,id)}return id}
+function deviceId(){let id=localStorage.getItem(DEVICE_KEY);if(!id){id='device_'+(crypto.randomUUID?.()||uid('id'));localStorage.setItem(DEVICE_KEY,id)}return id}
 function applyTheme(){
   state.settings||={theme:'system'};const pref=state.settings.theme||'system';
   const resolved=pref==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):pref;
