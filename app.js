@@ -339,8 +339,28 @@ function setupNavigation(){if(!history.state||!history.state.app){history.replac
 let lastExitBackAt=0;
 window.addEventListener('popstate',e=>{
   if(isExiting)return;
+
+  // Overlays are the top-most navigation layer. Android Back must dismiss the
+  // visible overlay without moving the page underneath it.
+  const confirmModal=document.getElementById('modalBackdrop');
+  if(confirmModal&&!confirmModal.classList.contains('hidden')){
+    document.getElementById('modalCancel')?.click();
+    setTimeout(()=>history.forward(),0);
+    return;
+  }
+  const addModal=document.getElementById('addMenuBackdrop');
+  if(addModal&&!addModal.classList.contains('hidden')){
+    document.getElementById('closeAddMenu')?.click();
+    setTimeout(()=>history.forward(),0);
+    return;
+  }
   const historyModal=document.getElementById('historyModalBackdrop');
-  if(historyModal&&!historyModal.classList.contains('hidden')){closeHistoryEditor();setTimeout(()=>history.forward(),0);return;}
+  if(historyModal&&!historyModal.classList.contains('hidden')){
+    closeHistoryEditor();
+    setTimeout(()=>history.forward(),0);
+    return;
+  }
+
   const dest=e.state;
   if(dest&&dest.app&&dest.route!=='exit'){applyRoute(dest);return}
   const now=Date.now();
@@ -494,7 +514,7 @@ document.getElementById('trackerMode').onchange=e=>{syncBasicDraft();const tr=wi
 document.getElementById('trackerDuration').oninput=()=>{syncBasicDraft();renderBuilder()};
 document.getElementById('cancelReminderEditor').onclick=()=>history.back();document.getElementById('saveReminderBtn').onclick=saveReminderEditor;document.getElementById('deleteReminderBtn').onclick=deleteCurrentReminder;document.getElementById('cancelTaskEditor').onclick=()=>history.back();document.getElementById('saveTaskBtn').onclick=saveTaskEditor;document.getElementById('deleteTaskBtn').onclick=deleteCurrentTask;document.getElementById('addSubtaskBtn').onclick=addSubtask;document.querySelectorAll('[data-relative-min]').forEach(b=>b.onclick=()=>setRelativeReminder(Number(b.dataset.relativeMin)));document.getElementById('openArchiveBtn')?.addEventListener('click',()=>pushRoute({route:'main',view:'archiveView'}));document.getElementById('openSettingsBtn')?.addEventListener('click',()=>pushRoute({route:'main',view:'appSettingsView'}));
 document.getElementById('historyModalClose').onclick=closeHistoryEditor;document.getElementById('historyModalDone').onclick=closeHistoryEditor;document.getElementById('historyModalBackdrop').onclick=e=>{if(e.target===document.getElementById('historyModalBackdrop'))closeHistoryEditor()};
-document.querySelectorAll('.detail-nav button').forEach(b=>b.onclick=()=>{const section=b.dataset.detail;if(section===detailSection)return;pushRoute({route:'detail',trackerId:currentTrackerId,section});});document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{const view=t.dataset.main;if(renderedRoute&&renderedRoute.route==='main'&&renderedRoute.view===view)return;replaceRoute({route:'main',view});});
+document.querySelectorAll('.detail-nav button').forEach(b=>b.onclick=()=>{const section=b.dataset.detail;if(section===detailSection)return;replaceRoute({route:'detail',trackerId:currentTrackerId,section});});document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{const view=t.dataset.main;if(renderedRoute&&renderedRoute.route==='main'&&renderedRoute.view===view)return;replaceRoute({route:'main',view});});
 document.getElementById('permissionBtn').onclick=enableNotifications;document.getElementById('testNotifyBtn').onclick=notifyTest;document.getElementById('diagnosticsBtn').onclick=runPushDiagnostics;
 document.getElementById('themeSelect').onchange=e=>{state.settings||={};state.settings.theme=e.target.value;save();applyTheme()};
 document.getElementById('exportDataBtn').onclick=exportData;document.getElementById('importDataBtn').onclick=()=>document.getElementById('importDataFile').click();document.getElementById('importDataFile').onchange=e=>{const f=e.target.files&&e.target.files[0];importDataFile(f);e.target.value=''};
