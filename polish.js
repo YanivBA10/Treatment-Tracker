@@ -1,4 +1,4 @@
-/* Personal Tracker visual + UX polish — 5.6.26 */
+/* Personal Tracker visual + UX polish — 5.6.27 */
 (()=>{
   'use strict';
 
@@ -194,10 +194,11 @@
     .quick-actions-replaced{display:none!important}
     .tools-menu.quick-actions-mode{position:static;display:block!important;min-width:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
     .tools-menu.quick-actions-mode>button{display:none!important}
-    .header-quick-actions{display:flex;align-items:center;gap:6px;direction:rtl}
-    .header-quick-action{width:34px;height:34px;border:1px solid var(--line);border-radius:11px;background:color-mix(in srgb,var(--card) 88%,transparent);color:var(--muted);display:grid;place-items:center;padding:0}
+    .header-quick-actions{display:flex;align-items:stretch;gap:0;direction:rtl;padding:3px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--card) 90%,transparent);box-shadow:0 5px 16px rgba(31,45,72,.06);overflow:hidden}
+    .header-quick-action{width:38px;height:36px;border:0;border-radius:10px;background:transparent;color:var(--muted);display:grid;place-items:center;padding:0;position:relative}
+    .header-quick-action+.header-quick-action:before{content:"";position:absolute;inset-inline-start:-1px;top:8px;bottom:8px;width:1px;background:var(--line)}
     .header-quick-action:active{background:var(--surface);transform:translateY(1px)}
-    .header-quick-action svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    .header-quick-action svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
     .app>header>.row{direction:rtl;flex:0 0 auto}
     .tools-btn{width:38px;height:38px;border-radius:13px;background:color-mix(in srgb,var(--card) 96%,transparent);box-shadow:var(--shadow-soft);font-size:18px}
     #toolsMenu{z-index:70;min-width:190px;padding:8px;border-radius:18px;box-shadow:0 18px 46px rgba(25,43,72,.16)}
