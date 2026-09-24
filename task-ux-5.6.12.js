@@ -209,6 +209,17 @@
       const host=document.getElementById('taskDetailSubtasks');
       const section=host?.closest('.card');
       const pr=taskProgress(t);
+
+      // A completed task is read-only until the user explicitly reopens it.
+      // Prevent an expanded completed subtask from silently reopening the task.
+      if(host){
+        host.querySelectorAll('.task .check').forEach(btn=>{
+          btn.disabled=t.status==='completed';
+          btn.setAttribute('aria-disabled',t.status==='completed'?'true':'false');
+          if(t.status==='completed')btn.title='פתח מחדש את המשימה כדי לשנות שלבים';
+          else btn.removeAttribute('title');
+        });
+      }
       if(section&&pr.total&&t.status!=='completed'){
         let prog=section.querySelector('.task-detail-progress-visual');
         if(!prog){prog=document.createElement('div');prog.className='task-detail-progress-visual';section.querySelector('.section-title')?.insertAdjacentElement('afterend',prog);}
@@ -323,6 +334,7 @@
     .task-mini-chip{display:inline-flex;padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--accent) 8%,var(--card));color:var(--muted);font-size:11px;font-weight:700}
     .work-task.overdue{border-color:color-mix(in srgb,var(--danger) 32%,var(--line))}
     .task-completed-mark{width:44px;height:44px;flex:0 0 44px;border:1px solid color-mix(in srgb,var(--ok) 28%,var(--line));border-radius:14px;display:grid;place-items:center;color:var(--ok);font-size:22px;font-weight:900;background:color-mix(in srgb,var(--ok) 8%,var(--card));pointer-events:none}
+    #taskDetailSubtasks .check:disabled{cursor:default;opacity:.72;pointer-events:none}
     .task-reopen-secondary{box-shadow:none!important;background:transparent!important;color:var(--accent)!important;border:1px solid var(--line)!important}
     .task-completed-meta-main{font-size:14px;font-weight:750;color:var(--text);margin-top:7px}
     .task-completed-meta-secondary{font-size:12px;color:var(--muted);margin-top:5px}
