@@ -278,11 +278,14 @@
     #todayView .focus-item .task-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:5px;color:var(--muted);font-size:13px;line-height:1.45}
 
     /* Quieter affordances */
-    #todayView .focus-arrow{width:24px;height:32px;border-radius:0;display:grid;place-items:center;background:transparent;font-size:22px;color:#687589;flex:0 0 24px;opacity:.86}
+    #todayView .focus-arrow{width:24px;height:32px;border-radius:0;display:grid;place-items:center;background:transparent;font-size:22px;color:var(--muted);flex:0 0 24px;opacity:.86}
     #todayView .focus-dot.type-chip{width:auto;height:auto;border-radius:999px;padding:4px 7px;font-size:9.5px;font-weight:850;line-height:1;background:var(--soft);color:var(--accent);white-space:nowrap;flex:0 0 auto}
     #todayView .tracker-focus .focus-dot.type-chip{background:color-mix(in srgb,var(--ok) 10%,var(--card));color:var(--ok)}
     #todayView .reminder-focus .focus-dot.type-chip{background:color-mix(in srgb,#db8b2d 11%,var(--card));color:#9b5b09}
     #todayView .task-focus .focus-dot.type-chip{background:color-mix(in srgb,#8065cb 11%,var(--card));color:#6848b6}
+    html[data-theme="dark"] #todayView .reminder-focus .focus-dot.type-chip{background:color-mix(in srgb,var(--warn) 14%,var(--card));color:var(--warn)}
+    html[data-theme="dark"] #todayView .task-focus .focus-dot.type-chip{background:color-mix(in srgb,#a990f0 16%,var(--card));color:#c7b8ff}
+    html[data-theme="dark"] .tabs{box-shadow:0 -10px 32px rgba(0,0,0,.2)}
 
     /* Active task card */
     #mainActive .work-task{border-radius:24px;background:var(--card);padding:17px 18px;margin:0;border:1px solid color-mix(in srgb,var(--line) 72%,transparent);box-shadow:0 9px 28px rgba(28,48,80,.065);transition:transform .12s}
@@ -299,7 +302,7 @@
     /* FAB and nav */
     .main-add{width:56px;height:56px;border-radius:18px;font-size:30px;bottom:calc(112px + env(safe-area-inset-bottom));left:max(24px,calc((100vw - 600px)/2 + 24px));box-shadow:0 14px 30px rgba(53,105,232,.27)}
     .tabs{border-top-color:color-mix(in srgb,var(--line) 72%,transparent);box-shadow:0 -10px 32px rgba(25,43,72,.06)}
-    .tab{padding-top:11px;color:#687589}
+    .tab{padding-top:11px;color:var(--muted)}
     .tab span{width:39px;height:32px;border-radius:13px;font-size:19px}
     .tab.active{color:var(--accent)}
     .tab.active span{background:color-mix(in srgb,var(--accent) 10%,var(--card))}
