@@ -14,13 +14,13 @@ document.documentElement.classList.add('pt-ui-booting');
 
 window.addEventListener('DOMContentLoaded',async()=>{
   const layers=[
-    'polish.js?v=5.6.36',
+    'polish.js?v=5.6.37',
     'backup.js?v=5.6.4',
     'ux-5.6.3.js?v=5.6.3',
     'ui-5.6.4.js?v=5.6.23',
     'tracker-ux-5.6.8.js?v=5.6.12',
     'task-ux-5.6.12.js?v=5.6.28',
-    'reminder-ux-5.6.15.js?v=5.6.20'
+    'reminder-ux-5.6.15.js?v=5.6.21'
   ];
 
   const load=(src)=>new Promise((resolve,reject)=>{
