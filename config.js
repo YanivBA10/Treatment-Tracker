@@ -19,7 +19,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     'ux-5.6.3.js?v=5.6.3',
     'ui-5.6.4.js?v=5.6.22',
     'tracker-ux-5.6.8.js?v=5.6.10',
-    'task-ux-5.6.12.js?v=5.6.14',
+    'task-ux-5.6.12.js?v=5.6.23',
     'reminder-ux-5.6.15.js?v=5.6.17'
   ];
 
