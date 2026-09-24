@@ -56,7 +56,7 @@ function migrateOld(old){
   ]};
 }
 function task(id,label,time,freq='daily',notify=true,periodLabel='',description=''){return {id,label,description,time,freq,everyN:2,weekdays:[0,1,2,3,4,5,6],notify,periodLabel}}
-function trackerDay(tr,date=new Date()){const a=parseDate(tr.startDate),b=new Date(date.getFullYear(),date.getMonth(),date.getDate());return Math.floor((b-a)/DAY_MS)+1}
+function trackerDay(tr,date=new Date()){const a=parseDate(tr.startDate);const start=Date.UTC(a.getFullYear(),a.getMonth(),a.getDate()),current=Date.UTC(date.getFullYear(),date.getMonth(),date.getDate());return Math.floor((current-start)/DAY_MS)+1}
 function trackerEndDay(tr){return tr.openEnded?Infinity:Number(tr.duration||1)}
 function stageForDay(tr,day){if(tr.mode==='simple')return tr.stages[0];return tr.stages.find(s=>day>=Number(s.from)&&day<=Number(s.to))||null}
 function taskOccurs(t,day,stage){
@@ -156,8 +156,8 @@ function renderTodayDashboard(){
   const overdue=(state.tasks||[]).filter(t=>t.status!=='completed'&&taskDueState(t)==='overdue');
   const dueToday=(state.tasks||[]).filter(t=>t.status!=='completed'&&taskDueState(t)==='today');
   for(const t of [...overdue,...dueToday]){attention.appendChild(itemShell('task-focus',t.title,taskDueState(t)==='overdue'?`באיחור · יעד ${fmtDate(parseDate(t.dueDate),true)}`:'יעד היום',()=>openTaskDetail(t.id)));count++}
-  const todayR=(state.reminders||[]).filter(r=>r.status!=='completed'&&reminderDueToday(r)&&!reminderDoneToday(r));
-  for(const r of todayR){attention.appendChild(itemShell('reminder-focus',r.title,`${r.time} · ${reminderRepeatLabel(r)}`,()=>openReminderEditor(r.id)));count++}
+  const todayR=(state.reminders||[]).filter(reminderNeedsAttention);
+  for(const r of todayR){const overdue=(r.repeat||'once')==='once'&&r.date<todayStr();attention.appendChild(itemShell('reminder-focus',r.title,overdue?`באיחור · ${fmtDate(parseDate(r.date),true)} · ${r.time}`:`${r.time} · ${reminderRepeatLabel(r)}`,()=>openReminderEditor(r.id)));count++}
   if(!count)attention.innerHTML='<div class="empty compact">אין כרגע דברים שדורשים תשומת לב.</div>';
   const activeTasks=(state.tasks||[]).filter(t=>t.status!=='completed'&&t.showOnMain&&!['overdue','today'].includes(taskDueState(t)));
   if(!activeTasks.length)active.innerHTML='<div class="empty compact">אין משימות שסומנו כפעילות עכשיו.</div>';else activeTasks.forEach(t=>active.appendChild(taskCard(t,true)));
@@ -262,6 +262,11 @@ function reminderDueToday(r){
   if(r.repeat==='daily')return true;
   if(r.repeat==='weekly')return parseDate(today).getDay()===parseDate(r.date).getDay();
   return false;
+}
+function reminderNeedsAttention(r){
+  if(r.status==='completed'||!r.date)return false;
+  if((r.repeat||'once')==='once')return r.date<=todayStr();
+  return reminderDueToday(r)&&!reminderDoneToday(r);
 }
 function reminderDoneToday(r){return !!(r.doneDates&&r.doneDates[todayStr()])}
 function snoozeLabel(ts){
