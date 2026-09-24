@@ -263,6 +263,8 @@
         editBtn.classList.toggle('secondary',t.status!=='completed');
         editBtn.classList.toggle('ghost',t.status==='completed');
       }
+      const actionWrap=doneBtn?.parentElement;
+      if(actionWrap&&editBtn&&doneBtn&&t.status!=='completed')actionWrap.prepend(doneBtn);
       syncHeaderMode();
     };
   }
