@@ -100,7 +100,7 @@
       let txt=d===today?`היום · ${done}/${ts.length}`:`${done}/${ts.length}`,cls='';
       if(d<today&&ts.length){
         if(done===ts.length){txt='הושלם';cls='ok'}
-        else if(unresolved===0){txt=`טופל · ${done}/${ts.length}`;cls='acknowledged'}
+        else if(unresolved===0){txt=`${done}/${ts.length} בוצעו`;cls='acknowledged'}
         else{txt=`${done}/${ts.length} · ${unresolved} לבדיקה`;cls='miss'}
       }
       row.innerHTML=`<div><strong>יום ${d}</strong><div class="task-meta">${fmtDate(date,true)}</div></div><div class="status ${cls}">${txt}</div>`;
