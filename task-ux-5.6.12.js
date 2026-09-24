@@ -167,7 +167,7 @@
           if(arr.length>5){
             const btn=document.createElement('button');
             btn.className='btn ghost block task-completed-toggle';
-            btn.textContent=showAllCompletedTasks?'הצג פחות':`הצג את כל ההושלמו (${arr.length})`;
+            btn.textContent=showAllCompletedTasks?'הצג פחות':`הצג את כל המשימות שהושלמו (${arr.length})`;
             btn.onclick=()=>{showAllCompletedTasks=!showAllCompletedTasks;renderTasksList();};
             done.appendChild(btn);
           }
