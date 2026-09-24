@@ -1,4 +1,4 @@
-/* Personal Tracker visual + UX polish — 5.6.39 */
+/* Personal Tracker visual + UX polish — 5.6.40 */
 (()=>{
   'use strict';
 
@@ -301,12 +301,14 @@
     #mainActive .check{width:39px;height:39px;border-radius:13px;border-width:2px;flex:0 0 39px}
 
     /* Empty states */
-    #mainLater{margin-bottom:42px}
+    #mainLater{margin-bottom:76px}
     #mainLater .empty,#mainAttention .empty,#mainActive .empty{font-size:14px;color:var(--muted);padding:25px 10px;line-height:1.55}
+    #mainActive .empty{padding:7px 4px 2px;text-align:right}
+    #todayView .main-section:has(#mainActive .empty:only-child){margin-bottom:18px}
     #mainLater .empty:before{content:'◷';display:block;margin:0 auto 8px;font-size:25px;color:color-mix(in srgb,var(--accent) 45%,var(--muted))}
 
     /* FAB and nav */
-    .main-add{width:56px;height:56px;border-radius:18px;font-size:30px;bottom:calc(112px + env(safe-area-inset-bottom));left:max(24px,calc((100vw - 600px)/2 + 24px));box-shadow:0 14px 30px rgba(53,105,232,.27)}
+    .main-add{width:52px;height:52px;border-radius:17px;font-size:28px;bottom:calc(110px + env(safe-area-inset-bottom));left:max(24px,calc((100vw - 600px)/2 + 24px));box-shadow:0 14px 30px rgba(53,105,232,.27)}
     .tabs{border-top-color:color-mix(in srgb,var(--line) 72%,transparent);box-shadow:0 -10px 32px rgba(25,43,72,.06)}
     .tab{padding-top:11px;color:var(--muted)}
     .tab span{width:39px;height:32px;border-radius:13px;font-size:19px}
@@ -367,7 +369,7 @@
       #todayView .main-section-title{font-size:20px}
       #todayView .focus-title,#mainActive .tracker-name{font-size:18px}
       #todayView .focus-item{min-height:82px}
-      .main-add{bottom:calc(108px + env(safe-area-inset-bottom))}
+      .main-add{bottom:calc(106px + env(safe-area-inset-bottom))}
     }
   `;
   document.head.appendChild(css);
