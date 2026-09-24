@@ -82,7 +82,7 @@
       'מעקבים':'מעקב אחרי תהליכים מתמשכים',
       'משימות':'דברים שצריך לבצע ולהשלים',
       'תזכורות':'דברים שחשוב לזכור בזמן',
-      'ארכיון':'פריטים שסיימת או העברת לארכיון',
+      'ארכיון':'מעקבים שהעברת לארכיון',
       'הגדרות':'מראה, התראות, נתונים וגיבוי'
     };
     const next=map[title.textContent.trim()];
@@ -120,6 +120,7 @@
     #detailSettings .tracker-manage-actions .btn{margin:0;width:100%;min-height:48px}
     #detailSettings .tracker-manage-primary{grid-column:1/-1;background:var(--accent);color:#fff}
     #detailSettings .tracker-manage-danger{grid-column:1/-1;margin-top:8px!important;background:color-mix(in srgb,var(--danger) 10%,var(--card));color:var(--danger);border:1px solid color-mix(in srgb,var(--danger) 24%,var(--line));box-shadow:none}
+    .tracker-action-readonly .history-choice:disabled{cursor:default;opacity:.7;pointer-events:none}
 
     /* Header alignment — align mark with the title, not the whole title/subtitle block */
     .app>header{align-items:flex-start}
