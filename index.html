@@ -133,7 +133,7 @@ html[data-theme="dark"] .status.miss{background:#3a2020}
   <span class="back" id="cancelReminderEditor">← ביטול</span>
   <div class="card"><div class="section-title" id="reminderEditorTitle">תזכורת חדשה</div>
     <label>מה להזכיר?</label><input id="reminderTitle" placeholder="לדוגמה: לשלוח הודעה לדני" />
-    <label>תיאור / הערה <span class="optional">(אופציונלי)</span></label><textarea id="reminderDescription" rows="3" placeholder="פרטים שיעזרו לי כשאקבל את התזכורת"></textarea>
+    <label>תיאור או הערה <span class="optional">(אופציונלי)</span></label><textarea id="reminderDescription" rows="3" placeholder="פרטים שיעזרו לי כשאקבל את התזכורת"></textarea>
     <div class="when-box"><label>מתי להזכיר?</label><div class="quick-time"><button type="button" data-relative-min="15">15 דק׳</button><button type="button" data-relative-min="30">30 דק׳</button><button type="button" data-relative-min="60">שעה</button><button type="button" data-relative-min="120">שעתיים</button><button type="button" id="customRelativeToggleBtn">מותאם</button></div><div class="relative-custom hidden" id="relativeCustomWrap"><div><label>עוד כמה?</label><input type="number" min="1" id="customRelativeAmount" placeholder="45"></div><div><label>יחידה</label><select id="customRelativeUnit"><option value="minutes">דקות</option><option value="hours">שעות</option></select></div></div><div class="or-divider">או בתאריך ושעה</div><div class="field-grid"><div><label>תאריך / תאריך התחלה</label><input type="date" id="reminderDate" /></div><div><label>שעה</label><input type="time" id="reminderTime" /></div></div></div>
     <label>חזרה</label><select id="reminderRepeat"><option value="once">חד־פעמית</option><option value="daily">כל יום</option><option value="weekly">כל שבוע</option></select>
     <div class="switchline"><input type="checkbox" id="reminderNotify" checked/><label for="reminderNotify" style="margin:0">שלח התראה</label></div>
@@ -145,7 +145,7 @@ html[data-theme="dark"] .status.miss{background:#3a2020}
   <span class="back" id="cancelTaskEditor">← ביטול</span>
   <div class="card"><div class="section-title" id="taskEditorTitle">משימה חדשה</div>
     <label>שם המשימה</label><input id="workTaskTitle" placeholder="לדוגמה: להגיש את מסמכי המכרז" />
-    <label>תיאור / הערה <span class="optional">(אופציונלי)</span></label><textarea id="workTaskDescription" rows="3" placeholder="פרטים שכדאי לזכור"></textarea>
+    <label>תיאור או הערה <span class="optional">(אופציונלי)</span></label><textarea id="workTaskDescription" rows="3" placeholder="פרטים שכדאי לזכור"></textarea>
     <label>תתי-משימות / שלבים <span class="optional">(אופציונלי)</span></label><div id="subtasksEditor"></div><button class="btn secondary block" type="button" id="addSubtaskBtn">+ הוסף שלב</button>
     <div class="field-grid"><div><label>תאריך יעד <span class="optional">(אופציונלי)</span></label><input type="date" id="workTaskDueDate"></div><div><label>תזכורת בתאריך</label><input type="date" id="workTaskReminderDate"></div></div>
     <label>שעת תזכורת <span class="optional">(אופציונלי)</span></label><input type="time" id="workTaskReminderTime"><div class="switchline show-main-line"><input type="checkbox" id="workTaskShowOnMain"><label for="workTaskShowOnMain" style="margin:0">הצג במסך הראשי כפעיל עכשיו</label></div>
