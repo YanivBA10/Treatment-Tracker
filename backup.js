@@ -159,6 +159,7 @@
         confirmText:'שחזר'
       });
       if(!ok)return;
+      makeSnapshot('before-local-recovery');
       state=restored;
       localStorage.setItem(APP_KEY,JSON.stringify(state));
       try{await syncPushState({reason:'local-recovery'})}catch{}
