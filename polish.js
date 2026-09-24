@@ -68,13 +68,16 @@
     window.renderTodayDashboard=function(){
       originalToday();
       try{
-        const reminders=(state.reminders||[]).filter(r=>r.status!=='completed'&&reminderDueToday(r)&&!reminderDoneToday(r));
+        const reminders=(state.reminders||[]).filter(r=>typeof reminderNeedsAttention==='function'?reminderNeedsAttention(r):(r.status!=='completed'&&reminderDueToday(r)&&!reminderDoneToday(r)));
         const cards=[...document.querySelectorAll('#mainAttention .focus-item.reminder-focus')];
         cards.forEach((card,i)=>{
           const r=reminders[i];if(!r)return;
           const meta=card.querySelector('.task-meta');if(!meta)return;
           const snz=window.snoozeLabel(r.snoozedUntil);
-          meta.innerHTML=`<span class="meta-main"><span>${reminderRepeatLabel(r)}</span><span class="meta-sep">•</span><span class="meta-time">${r.time||''}</span></span>${snz?`<span class="snooze-pill">${snz}</span>`:''}`;
+          const overdue=(r.repeat||'once')==='once'&&r.date<todayStr();
+          meta.innerHTML=overdue
+            ?`<span class="meta-main"><span class="task-state-chip overdue">באיחור</span><span class="meta-date">${fmtDate(parseDate(r.date),true)}</span><span class="meta-sep">•</span><span class="meta-time">${r.time||''}</span></span>${snz?`<span class="snooze-pill">${snz}</span>`:''}`
+            :`<span class="meta-main"><span>${reminderRepeatLabel(r)}</span><span class="meta-sep">•</span><span class="meta-time">${r.time||''}</span></span>${snz?`<span class="snooze-pill">${snz}</span>`:''}`;
           meta.classList.toggle('snoozed-meta',!!snz);
         });
         enhanceHomeCards();
