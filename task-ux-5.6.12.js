@@ -1,4 +1,4 @@
-/* Personal Tracker — tasks + depth navigation polish 5.6.14 */
+/* Personal Tracker — tasks + depth navigation polish 5.6.23 */
 (()=>{
   'use strict';
 
@@ -88,6 +88,75 @@
       el.querySelector('.reminder-check').onclick=e=>{e.stopPropagation();setWholeTaskDone(t,t.status!=='completed')};
       el.onclick=()=>openTaskDetail(t.id);
       return el;
+    };
+  }
+
+  let showAllCompletedTasks=false;
+
+  function taskBucket(t){
+    if(!t.dueDate)return 'nodate';
+    const today=parseDate(todayStr());
+    const due=parseDate(t.dueDate);
+    const delta=Math.round((due-today)/86400000);
+    if(delta<0)return 'overdue';
+    if(delta===0)return 'today';
+    if(delta<=7)return 'soon';
+    return 'later';
+  }
+
+  function taskGroupBlock(title,items,key){
+    if(!items.length)return null;
+    const wrap=document.createElement('section');
+    wrap.className='task-time-group task-time-'+key;
+    const head=document.createElement('div');
+    head.className='task-time-group-head';
+    head.innerHTML=`<span>${title}</span><span class="task-time-count">${items.length}</span>`;
+    wrap.appendChild(head);
+    const list=document.createElement('div');
+    list.className='task-time-group-list';
+    items.forEach(t=>list.appendChild(taskCard(t)));
+    wrap.appendChild(list);
+    return wrap;
+  }
+
+  if(typeof window.renderTasksList==='function'){
+    window.renderTasksList=function(){
+      const box=document.getElementById('tasksList'),done=document.getElementById('completedTasks');
+      if(!box)return;
+      box.innerHTML='';
+      const active=(state.tasks||[]).filter(t=>t.status!=='completed');
+      const groups=[
+        ['באיחור',active.filter(t=>taskBucket(t)==='overdue'),'overdue'],
+        ['היום',active.filter(t=>taskBucket(t)==='today'),'today'],
+        ['בקרוב',active.filter(t=>taskBucket(t)==='soon'),'soon'],
+        ['בהמשך',active.filter(t=>taskBucket(t)==='later'),'later'],
+        ['ללא תאריך',active.filter(t=>taskBucket(t)==='nodate'),'nodate']
+      ];
+      const sorter=(a,b)=>(a.dueDate||'9999-12-31').localeCompare(b.dueDate||'9999-12-31')||((a.createdAt||0)-(b.createdAt||0));
+      groups.forEach(g=>g[1].sort(sorter));
+      if(!active.length){
+        box.innerHTML='<div class="empty">אין משימות פתוחות.</div>';
+      }else{
+        groups.forEach(([title,items,key])=>{const block=taskGroupBlock(title,items,key);if(block)box.appendChild(block);});
+      }
+
+      if(done){
+        done.innerHTML='';
+        const arr=(state.tasks||[]).filter(t=>t.status==='completed').sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
+        if(!arr.length){
+          done.innerHTML='<div class="empty compact">אין משימות שהושלמו.</div>';
+        }else{
+          const visible=showAllCompletedTasks?arr:arr.slice(0,5);
+          visible.forEach(t=>done.appendChild(taskCard(t,true)));
+          if(arr.length>5){
+            const btn=document.createElement('button');
+            btn.className='btn ghost block task-completed-toggle';
+            btn.textContent=showAllCompletedTasks?'הצג פחות':`הצג את כל ההושלמו (${arr.length})`;
+            btn.onclick=()=>{showAllCompletedTasks=!showAllCompletedTasks;renderTasksList();};
+            done.appendChild(btn);
+          }
+        }
+      }
     };
   }
 
@@ -193,6 +262,14 @@
     .task-secondary-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
     .task-mini-chip{display:inline-flex;padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--accent) 8%,var(--card));color:var(--muted);font-size:11px;font-weight:700}
     .work-task.overdue{border-color:color-mix(in srgb,var(--danger) 32%,var(--line))}
+    .task-time-group{margin-top:18px}
+    .task-time-group:first-child{margin-top:8px}
+    .task-time-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 8px;font-size:14px;font-weight:850;color:var(--text)}
+    .task-time-count{display:inline-flex;min-width:24px;height:24px;padding:0 7px;align-items:center;justify-content:center;border-radius:999px;background:var(--soft);color:var(--muted);font-size:11px;font-weight:800}
+    .task-time-overdue .task-time-group-head{color:var(--danger)}
+    .task-time-group-list{display:grid;gap:10px}
+    .task-time-group-list .work-task{margin:0}
+    .task-completed-toggle{margin-top:10px}
     .task-detail-state{display:inline-flex;width:max-content;padding:5px 9px;border-radius:999px;margin-bottom:9px;background:var(--soft);color:var(--muted);font-size:12px;font-weight:800}
     #taskDetailMeta{display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-top:7px}
     .task-detail-progress-visual{margin:2px 0 16px}
