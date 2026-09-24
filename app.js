@@ -631,7 +631,11 @@ function handleLaunchLink(){
   const p=new URLSearchParams(location.search);const tracker=p.get('openTracker'),rem=p.get('openReminder'),task=p.get('openTask');
   if(tracker&&state.trackers.some(x=>x.id===tracker))openTracker(tracker);
   else if(task&&(state.tasks||[]).some(x=>x.id===task))openTaskDetail(task);
-  else if(rem&&(state.reminders||[]).some(x=>x.id===rem))openReminderEditor(rem);
+  else if(rem&&(state.reminders||[]).some(x=>x.id===rem)){
+    // Existing reminders open to their details, not directly to edit.
+    // The reminder UX layer handles this route once all enhancement layers load.
+    pushRoute({route:'reminderDetail',reminderId:rem});
+  }
   if(tracker||rem||task)history.replaceState(history.state,'',location.pathname);
 }
 if('serviceWorker'in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data?.type==='notification-action-local'){if(applyNotificationActionLocally(e.data.payload)){localStorage.setItem(APP_KEY,JSON.stringify(state));renderMain()}}});
