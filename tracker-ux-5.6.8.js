@@ -48,7 +48,11 @@
     const archive=box.querySelector('[data-archive]');
     const del=box.querySelector('[data-delete]');
     if(edit){edit.classList.remove('secondary','ghost');edit.classList.add('tracker-manage-primary');}
-    [dup,archive].forEach(b=>b?.classList.add('tracker-manage-secondary'));
+    if(!edit&&archive){
+      archive.classList.remove('secondary','ghost','tracker-manage-secondary');
+      archive.classList.add('tracker-manage-primary');
+    }
+    [dup,archive].forEach(b=>{if(b&&!b.classList.contains('tracker-manage-primary'))b.classList.add('tracker-manage-secondary')});
     if(del){
       del.classList.add('tracker-manage-danger');
       const actions=del.parentElement;
@@ -121,6 +125,7 @@
     #detailSettings .tracker-manage-primary{grid-column:1/-1;background:var(--accent);color:#fff}
     #detailSettings .tracker-manage-danger{grid-column:1/-1;margin-top:8px!important;background:color-mix(in srgb,var(--danger) 10%,var(--card));color:var(--danger);border:1px solid color-mix(in srgb,var(--danger) 24%,var(--line));box-shadow:none}
     .tracker-action-readonly .history-choice:disabled{cursor:default;opacity:.7;pointer-events:none}
+    .tracker-archive-readonly-note{margin:-2px 0 12px;line-height:1.55}
 
     /* Header alignment — align mark with the title, not the whole title/subtitle block */
     .app>header{align-items:flex-start}
