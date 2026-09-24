@@ -138,7 +138,7 @@
     }else repeat.classList.add('hidden');
 
     const snooze=document.getElementById('reminderDetailSnooze');
-    const snz=typeof snoozeLabel==='function'?snoozeLabel(r.snoozedUntil):'';
+    const snz=!completed&&typeof snoozeLabel==='function'?snoozeLabel(r.snoozedUntil):'';
     snooze.textContent=snz||'';
     snooze.classList.toggle('hidden',!snz);
 
@@ -210,7 +210,7 @@
       el.className='reminder-card'+(completed?' completed':'')+(overdue?' overdue':'');
       const doneToday=typeof reminderDoneToday==='function'&&reminderDoneToday(r);
       const when=reminderWhen(r);
-      const snz=typeof snoozeLabel==='function'?snoozeLabel(r.snoozedUntil):'';
+      const snz=!completed&&typeof snoozeLabel==='function'?snoozeLabel(r.snoozedUntil):'';
       el.innerHTML=`<div class="reminder-main"><div class="grow"><div class="reminder-title-line"><div class="tracker-name">${esc(r.title)}</div>${overdue?'<span class="reminder-overdue-chip">באיחור</span>':''}</div>${r.description?`<div class="reminder-description">${esc(r.description)}</div>`:''}<div class="task-meta reminder-time-row"><span>${esc(when)}</span>${snz?`<span class="reminder-snooze-chip">${esc(snz)}</span>`:''}</div></div>${completed?'<span class="badge ok">הושלם</span>':`<button class="check reminder-check" aria-label="סימון בוצע">${doneToday?'✓':''}</button>`}</div>`;
       if(!completed){
         el.querySelector('.reminder-check').onclick=e=>{e.stopPropagation();completeReminder(r)};
