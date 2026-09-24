@@ -69,7 +69,7 @@
         return;
       }
       downloadBackup();
-      toast('שיתוף קובץ אינו נתמך כאן — הגיבוי הורד למכשיר');
+      toast('שיתוף קובץ אינו נתמך כאן. הגיבוי הורד למכשיר.');
     }catch(err){
       if(err?.name==='AbortError')return;
       console.warn('backup share',err);
@@ -178,7 +178,7 @@
       return;
     }
     const days=Math.floor((Date.now()-Number(rec.at))/DAY_MS);
-    const age=days>=30?` · עברו ${days} ימים — מומלץ לגבות שוב`:'';
+    const age=days>=30?` · עברו ${days} ימים. מומלץ לגבות שוב`:'';
     el.innerHTML=`<strong>גיבוי חיצוני אחרון:</strong> ${fmtDateTime(rec.at)}${age}`;
   }
 
@@ -229,7 +229,7 @@
 
     if(!document.getElementById('localRecoveryWrap')){
       const wrap=document.createElement('div');wrap.id='localRecoveryWrap';wrap.className='backup-recovery';
-      wrap.innerHTML='<div class="backup-subtitle">רשת ביטחון מקומית</div><div id="localSnapshotStatus" class="small"></div><button class="btn ghost" id="restoreLocalSnapshotBtn">שחזור מקומי אחרון</button><div class="small backup-warning">נקודות שחזור מקומיות לא ישרדו הסרת אפליקציה או ניקוי נתונים — לכן הן אינן תחליף לגיבוי חיצוני.</div>';
+      wrap.innerHTML='<div class="backup-subtitle">רשת ביטחון מקומית</div><div id="localSnapshotStatus" class="small"></div><button class="btn ghost" id="restoreLocalSnapshotBtn">שחזור מקומי אחרון</button><div class="small backup-warning">נקודות שחזור מקומיות לא ישרדו הסרת אפליקציה או ניקוי נתונים. לכן הן אינן תחליף לגיבוי חיצוני.</div>';
       card.appendChild(wrap);
       wrap.querySelector('#restoreLocalSnapshotBtn').onclick=restoreLatestSnapshot;
     }
