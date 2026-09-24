@@ -206,11 +206,12 @@
   if(typeof window.reminderCard==='function'){
     window.reminderCard=function(r,completed=false){
       const el=document.createElement('div');
-      el.className='reminder-card'+(completed?' completed':'');
+      const overdue=!completed&&(r.repeat||'once')==='once'&&r.date&&r.date<todayStr();
+      el.className='reminder-card'+(completed?' completed':'')+(overdue?' overdue':'');
       const doneToday=typeof reminderDoneToday==='function'&&reminderDoneToday(r);
       const when=reminderWhen(r);
       const snz=typeof snoozeLabel==='function'?snoozeLabel(r.snoozedUntil):'';
-      el.innerHTML=`<div class="reminder-main"><div class="grow"><div class="tracker-name">${esc(r.title)}</div>${r.description?`<div class="reminder-description">${esc(r.description)}</div>`:''}<div class="task-meta reminder-time-row"><span>${esc(when)}</span>${snz?`<span class="reminder-snooze-chip">${esc(snz)}</span>`:''}</div></div>${completed?'<span class="badge ok">הושלם</span>':`<button class="check reminder-check" aria-label="סימון בוצע">${doneToday?'✓':''}</button>`}</div>`;
+      el.innerHTML=`<div class="reminder-main"><div class="grow"><div class="reminder-title-line"><div class="tracker-name">${esc(r.title)}</div>${overdue?'<span class="reminder-overdue-chip">באיחור</span>':''}</div>${r.description?`<div class="reminder-description">${esc(r.description)}</div>`:''}<div class="task-meta reminder-time-row"><span>${esc(when)}</span>${snz?`<span class="reminder-snooze-chip">${esc(snz)}</span>`:''}</div></div>${completed?'<span class="badge ok">הושלם</span>':`<button class="check reminder-check" aria-label="סימון בוצע">${doneToday?'✓':''}</button>`}</div>`;
       if(!completed){
         el.querySelector('.reminder-check').onclick=e=>{e.stopPropagation();completeReminder(r)};
       }
@@ -285,6 +286,9 @@
     .reminder-time-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:7px;direction:rtl}
     .reminder-time-row>span:first-child{unicode-bidi:plaintext}
     .reminder-snooze-chip{display:inline-flex;padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--accent) 9%,var(--card));color:var(--accent);font-size:11px;font-weight:800}
+    .reminder-title-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .reminder-overdue-chip{display:inline-flex;padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--danger) 10%,var(--card));color:var(--danger);font-size:11px;font-weight:850}
+    .reminder-card.overdue{border-color:color-mix(in srgb,var(--danger) 34%,var(--line))}
     .completed-reminders-more{margin-top:12px!important}
     .completed-reminders-note{margin-bottom:12px}
     .reminder-detail-state{display:inline-flex;width:max-content;padding:5px 9px;border-radius:999px;margin-bottom:10px;font-size:12px;font-weight:800}
