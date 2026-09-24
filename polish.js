@@ -1,4 +1,4 @@
-/* Personal Tracker visual + UX polish — 5.6.27 */
+/* Personal Tracker visual + UX polish — 5.6.28 */
 (()=>{
   'use strict';
 
@@ -151,9 +151,12 @@
     const wrap=document.createElement('div');
     wrap.id='headerQuickActions';
     wrap.className='header-quick-actions';
+    // One optical icon family: 24px viewBox, round caps/joins and the same
+    // stroke weight. Keeping the SVGs structurally consistent prevents one
+    // action (notably Settings) from looking heavier or vertically misaligned.
     const icon=(kind)=>{
-      if(kind==='settings')return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-3v-.08A1.7 1.7 0 0 0 10.68 18.36a1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7.02 15a1.7 1.7 0 0 0-1.56-1.03H5v-3h.46A1.7 1.7 0 0 0 7.02 9.94a1.7 1.7 0 0 0-.34-1.88L6.62 8l2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 11.71 4.7V4h3v.7a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 8l-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.96 11H21v3h-.04A1.7 1.7 0 0 0 19.4 15Z"></path></svg>';
-      if(kind==='archive')return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4z"></path><path d="M3 4h18v3H3z"></path><path d="M9 11h6"></path></svg>';
+      if(kind==='settings')return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.09a2 2 0 0 1 1 1.74v.5a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+      if(kind==='archive')return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="3" width="19" height="5" rx="1.5"></rect><path d="M4.5 8v10.5a2.5 2.5 0 0 0 2.5 2.5h10a2.5 2.5 0 0 0 2.5-2.5V8"></path><path d="M9.5 12h5"></path></svg>';
       return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"></circle><circle cx="6" cy="12" r="2.5"></circle><circle cx="18" cy="19" r="2.5"></circle><path d="m8.2 10.8 7.6-4.6M8.2 13.2l7.6 4.6"></path></svg>';
     };
     [
@@ -194,11 +197,12 @@
     .quick-actions-replaced{display:none!important}
     .tools-menu.quick-actions-mode{position:static;display:block!important;min-width:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
     .tools-menu.quick-actions-mode>button{display:none!important}
-    .header-quick-actions{display:flex;align-items:stretch;gap:0;direction:rtl;padding:3px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--card) 90%,transparent);box-shadow:0 5px 16px rgba(31,45,72,.06);overflow:hidden}
-    .header-quick-action{width:38px;height:36px;border:0;border-radius:10px;background:transparent;color:var(--muted);display:grid;place-items:center;padding:0;position:relative}
-    .header-quick-action+.header-quick-action:before{content:"";position:absolute;inset-inline-start:-1px;top:8px;bottom:8px;width:1px;background:var(--line)}
+    .header-quick-actions{display:flex;align-items:center;gap:0;direction:rtl;padding:3px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--card) 92%,transparent);box-shadow:0 5px 16px rgba(31,45,72,.06);overflow:hidden}
+    .header-quick-action{width:40px;height:38px;flex:0 0 40px;border:0;border-radius:10px;background:transparent;color:var(--text);display:grid;place-items:center;padding:0;position:relative;line-height:0}
+    .header-quick-action+.header-quick-action:before{content:"";position:absolute;inset-inline-start:-1px;top:9px;bottom:9px;width:1px;background:var(--line)}
     .header-quick-action:active{background:var(--surface);transform:translateY(1px)}
-    .header-quick-action svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+    .header-quick-action:focus-visible{outline:2px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:-2px}
+    .header-quick-action svg{display:block;width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
     .app>header>.row{direction:rtl;flex:0 0 auto}
     .tools-btn{width:38px;height:38px;border-radius:13px;background:color-mix(in srgb,var(--card) 96%,transparent);box-shadow:var(--shadow-soft);font-size:18px}
     #toolsMenu{z-index:70;min-width:190px;padding:8px;border-radius:18px;box-shadow:0 18px 46px rgba(25,43,72,.16)}
