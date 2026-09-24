@@ -1,4 +1,4 @@
-/* Personal Tracker — reminders UX + lifecycle polish 5.6.17 */
+/* Personal Tracker — reminders UX + lifecycle polish 5.6.21 */
 (()=>{
   'use strict';
 
@@ -233,7 +233,7 @@
     if(arr.length>RECENT_COMPLETED_LIMIT){
       const btn=document.createElement('button');
       btn.className='btn ghost block completed-reminders-more';
-      btn.textContent=`הצג את כל ההושלמו (${arr.length})`;
+      btn.textContent=`הצג את כל התזכורות שהושלמו (${arr.length})`;
       btn.onclick=openAllCompletedReminders;
       host.appendChild(btn);
     }
